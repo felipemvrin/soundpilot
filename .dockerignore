@@ -1,0 +1,10 @@
+node_modules
+dist
+.angular
+coverage
+.git
+.npm-cache
+.home
+.env
+.env.*
+*.log
