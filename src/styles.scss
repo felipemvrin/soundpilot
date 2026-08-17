@@ -1,0 +1,19 @@
+:root {
+  --background: #0b111b;
+  --surface: #151f2d;
+  --surface-alt: #1b2738;
+  --line: #2e3c51;
+  --text: #eff5ff;
+  --muted: #9eacc0;
+  --accent: #75d3c6;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  margin: 0;
+  min-width: 320px;
+}

@@ -1,0 +1,114 @@
+<main class="shell">
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">REAL-TIME AUDIO CUE ASSISTANT</span>
+      <h1>SoundPilot</h1>
+    </div>
+    <span class="status" [class.live]="isListening()"><i></i>{{ readyLabel() }}</span>
+  </header>
+
+  <section class="monitor" aria-label="Microphone monitor">
+    <div>
+      <span class="eyebrow">MICROPHONE</span>
+      <h2>{{ isListening() ? 'Input armed' : 'Input idle' }}</h2>
+    </div>
+    <div class="meter" aria-label="Audio level">
+      <span [style.width.%]="audioLevel() * 100"></span>
+    </div>
+    <button type="button" (click)="toggleListening()">
+      {{ isListening() ? 'Stop listening' : 'Start listening' }}
+    </button>
+    @if (!speechAvailable()) {
+      <p class="notice">Speech recognition unavailable. Cue configuration remains available.</p>
+    }
+  </section>
+
+  <div class="workspace">
+    <section class="panel transcript">
+      <span class="eyebrow">CURRENT TRANSCRIPT</span>
+      <p>{{ transcript()?.text || 'Waiting for speech...' }}</p>
+      @if (transcript()) {
+        <small>Confidence {{ (transcript()!.confidence * 100).toFixed(0) }}%</small>
+      }
+    </section>
+    <section class="panel detected">
+      <span class="eyebrow">DETECTED CUE</span>
+      @if (detectedCue(); as event) {
+        <h2>{{ event.cue.name }}</h2>
+        <p>{{ event.trigger.value }} · {{ event.action }}</p>
+        <button type="button" (click)="playCue(event.cue)">Play cue</button>
+      } @else {
+        <p>No cue detected yet.</p>
+      }
+    </section>
+    <section class="panel events">
+      <span class="eyebrow">RECENT EVENTS</span>
+      @for (event of events(); track event.timestamp) {
+        <p>
+          <time>{{ event.timestamp | date: 'HH:mm:ss' }}</time
+          ><strong>{{ event.cue.name }}</strong
+          ><span>{{ event.action }}</span>
+        </p>
+      } @empty {
+        <p>No events recorded.</p>
+      }
+    </section>
+  </div>
+
+  <section class="cue-manager">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">CUE MANAGER</span>
+        <h2>Configured cues</h2>
+      </div>
+      <span>{{ cues().length }} cues</span>
+    </div>
+    <div class="cue-grid">
+      @for (cue of cues(); track cue.id) {
+        <article class="cue-card" [class.disabled]="!cue.enabled">
+          <div>
+            <h3>{{ cue.name }}</h3>
+            <p>{{ triggerLabel(cue) }}</p>
+          </div>
+          <div class="cue-actions">
+            <button type="button" (click)="playCue(cue)">Play</button
+            ><button type="button" (click)="toggleCue(cue)">
+              {{ cue.enabled ? 'Disable' : 'Enable' }}</button
+            ><button type="button" class="quiet" (click)="removeCue(cue)">Remove</button>
+          </div>
+        </article>
+      }
+    </div>
+    <form class="editor" (ngSubmit)="addCue()">
+      <input name="cueName" [(ngModel)]="cueDraft().name" placeholder="Cue name" required />
+      @for (trigger of cueDraft().triggers; track trigger.id) {
+        <input
+          [name]="'trigger-' + trigger.id"
+          [(ngModel)]="trigger.value"
+          placeholder="Trigger word or phrase"
+        />
+      }
+      <button type="button" class="quiet" (click)="addTrigger()">Add trigger</button>
+      <select name="mode" [(ngModel)]="cueDraft().mode">
+        <option value="automatic">Automatic</option>
+        <option value="confirm">Confirm</option>
+        <option value="manual">Manual</option>
+      </select>
+      <input
+        name="cooldown"
+        [(ngModel)]="cueDraft().cooldownMs"
+        type="number"
+        min="0"
+        step="500"
+        aria-label="Cooldown in milliseconds"
+      />
+      <input
+        name="audio"
+        type="file"
+        accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4"
+        (change)="selectAudioFile($event)"
+      />
+      <button type="submit">Create cue</button>
+    </form>
+  </section>
+</main>
