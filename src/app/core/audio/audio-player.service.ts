@@ -11,10 +11,10 @@ export class AudioPlayerService {
 
   readonly playback$ = this.playbackSubject.asObservable();
 
-  async play(cue: Cue): Promise<void> {
+  async play(cue: Cue): Promise<'played' | 'error'> {
     if (!cue.audioFile) {
       this.emit(cue.id, 'error');
-      return;
+      return 'error';
     }
     const player = new Audio(cue.audioFile);
     player.volume = this.clamp(cue.volume * this.masterVolume);
@@ -23,9 +23,11 @@ export class AudioPlayerService {
     try {
       await player.play();
       this.emit(cue.id, 'played');
+      return 'played';
     } catch {
       this.players.delete(cue.id);
       this.emit(cue.id, 'error');
+      return 'error';
     }
   }
 

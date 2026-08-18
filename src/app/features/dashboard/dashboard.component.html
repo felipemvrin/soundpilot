@@ -41,13 +41,33 @@
         <p>No cue detected yet.</p>
       }
     </section>
+    <section class="panel confirmations">
+      <span class="eyebrow">CONFIRMATION QUEUE</span>
+      @for (pending of pendingConfirmations(); track pending.event.cue.id) {
+        <div class="confirmation-item">
+          <div>
+            <h2>{{ pending.event.cue.name }}</h2>
+            <p>
+              Detected: {{ pending.event.trigger.value }} · Expires in
+              {{ remainingConfirmationSeconds(pending) }}s
+            </p>
+          </div>
+          <div class="cue-actions">
+            <button type="button" (click)="confirmCue(pending)">Play</button>
+            <button type="button" class="quiet" (click)="dismissCue(pending)">Dismiss</button>
+          </div>
+        </div>
+      } @empty {
+        <p>No cues awaiting confirmation.</p>
+      }
+    </section>
     <section class="panel events">
       <span class="eyebrow">RECENT EVENTS</span>
-      @for (event of events(); track event.timestamp) {
+      @for (item of events(); track item.timestamp) {
         <p>
-          <time>{{ event.timestamp | date: 'HH:mm:ss' }}</time
-          ><strong>{{ event.cue.name }}</strong
-          ><span>{{ event.action }}</span>
+          <time>{{ item.timestamp | date: 'HH:mm:ss' }}</time
+          ><strong>{{ item.event.cue.name }}</strong
+          ><span>{{ item.action }}</span>
         </p>
       } @empty {
         <p>No events recorded.</p>
@@ -74,29 +94,44 @@
             <button type="button" (click)="playCue(cue)">Play</button
             ><button type="button" (click)="toggleCue(cue)">
               {{ cue.enabled ? 'Disable' : 'Enable' }}</button
+            ><label class="file-picker"
+              >{{ cue.audioFile ? 'Replace audio' : 'Assign audio'
+              }}<input
+                type="file"
+                accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4"
+                (change)="assignCueAudio(cue, $event)"
+            /></label>
             ><button type="button" class="quiet" (click)="removeCue(cue)">Remove</button>
           </div>
         </article>
       }
     </div>
     <form class="editor" (ngSubmit)="addCue()">
-      <input name="cueName" [(ngModel)]="cueDraft().name" placeholder="Cue name" required />
+      <input
+        name="cueName"
+        [ngModel]="cueDraft().name"
+        (ngModelChange)="updateDraftName($event)"
+        placeholder="Cue name"
+        required
+      />
       @for (trigger of cueDraft().triggers; track trigger.id) {
         <input
           [name]="'trigger-' + trigger.id"
-          [(ngModel)]="trigger.value"
+          [ngModel]="trigger.value"
+          (ngModelChange)="updateDraftTrigger(trigger.id, $event)"
           placeholder="Trigger word or phrase"
         />
       }
       <button type="button" class="quiet" (click)="addTrigger()">Add trigger</button>
-      <select name="mode" [(ngModel)]="cueDraft().mode">
+      <select name="mode" [ngModel]="cueDraft().mode" (ngModelChange)="updateDraftMode($event)">
         <option value="automatic">Automatic</option>
         <option value="confirm">Confirm</option>
         <option value="manual">Manual</option>
       </select>
       <input
         name="cooldown"
-        [(ngModel)]="cueDraft().cooldownMs"
+        [ngModel]="cueDraft().cooldownMs"
+        (ngModelChange)="updateDraftCooldown($event)"
         type="number"
         min="0"
         step="500"
@@ -108,7 +143,10 @@
         accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4"
         (change)="selectAudioFile($event)"
       />
-      <button type="submit">Create cue</button>
+      <button type="submit" [disabled]="!canCreateCue()">Create cue</button>
+      @if (!canCreateCue()) {
+        <p class="form-hint">Enter a cue name and at least one trigger to create it.</p>
+      }
     </form>
   </section>
 </main>

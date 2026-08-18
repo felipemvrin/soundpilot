@@ -94,10 +94,26 @@ button {
   font-weight: 700;
   padding: 0.65rem 0.9rem;
 }
+.file-picker {
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.58rem 0.8rem;
+}
+.file-picker input {
+  display: none;
+}
 button.quiet {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 .notice {
   color: #e9bd4d;
@@ -107,6 +123,22 @@ button.quiet {
   display: grid;
   gap: 1rem;
   grid-template-columns: 1.4fr 1fr;
+}
+.confirmations {
+  grid-column: 1 / -1;
+}
+.confirmation-item {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+}
+.confirmation-item p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
 }
 .panel,
 .cue-manager {
@@ -176,13 +208,20 @@ button.quiet {
   min-width: 0;
   padding: 0.65rem;
 }
+.form-hint {
+  color: #e9bd4d;
+  font-size: 0.85rem;
+  grid-column: 1 / -1;
+  margin: 0;
+}
 @media (max-width: 760px) {
   .shell {
     padding: 1rem;
   }
   .monitor,
   .topbar,
-  .cue-card {
+  .cue-card,
+  .confirmation-item {
     align-items: flex-start;
     flex-direction: column;
   }
