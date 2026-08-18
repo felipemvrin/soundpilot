@@ -113,6 +113,14 @@ export class DashboardComponent implements OnDestroy {
     this.cueDraft.update((cue) => ({ ...cue, audioFile: objectUrl }));
   }
 
+  assignCueAudio(cue: Cue, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const audioFile = URL.createObjectURL(file);
+    this.persist(this.cues().map((item) => (item.id === cue.id ? { ...item, audioFile } : item)));
+  }
+
   async playCue(cue: Cue): Promise<void> {
     await this.player.play(cue);
   }

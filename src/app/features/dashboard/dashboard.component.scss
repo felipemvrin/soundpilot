@@ -94,6 +94,18 @@ button {
   font-weight: 700;
   padding: 0.65rem 0.9rem;
 }
+.file-picker {
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.58rem 0.8rem;
+}
+.file-picker input {
+  display: none;
+}
 button.quiet {
   background: transparent;
   border: 1px solid var(--line);

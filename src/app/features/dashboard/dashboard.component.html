@@ -74,6 +74,13 @@
             <button type="button" (click)="playCue(cue)">Play</button
             ><button type="button" (click)="toggleCue(cue)">
               {{ cue.enabled ? 'Disable' : 'Enable' }}</button
+            ><label class="file-picker"
+              >{{ cue.audioFile ? 'Replace audio' : 'Assign audio'
+              }}<input
+                type="file"
+                accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4"
+                (change)="assignCueAudio(cue, $event)"
+            /></label>
             ><button type="button" class="quiet" (click)="removeCue(cue)">Remove</button>
           </div>
         </article>
