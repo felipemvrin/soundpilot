@@ -33,7 +33,7 @@ describe('AudioPlayerService', () => {
     const service = new AudioPlayerService();
     const events: string[] = [];
     service.playback$.subscribe((event) => events.push(event.type));
-    await service.play(cue);
+    await expect(service.play(cue)).resolves.toBe('played');
     expect(events).toEqual(['played']);
   });
 
@@ -41,7 +41,7 @@ describe('AudioPlayerService', () => {
     const service = new AudioPlayerService();
     const events: string[] = [];
     service.playback$.subscribe((event) => events.push(event.type));
-    await service.play({ ...cue, audioFile: '' });
+    await expect(service.play({ ...cue, audioFile: '' })).resolves.toBe('error');
     expect(events).toEqual(['error']);
   });
 });

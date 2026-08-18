@@ -69,9 +69,11 @@ describe('CueEngineService', () => {
     expect(
       service.processTranscript(transcript('esposa', 5000), [cue({ mode: 'manual' })])[0]?.action,
     ).toBe('display');
-    expect(
-      service.processTranscript(transcript('esposa', 9000), [cue({ mode: 'confirm' })])[0]?.action,
-    ).toBe('confirm');
+    const confirmation = service.processTranscript(transcript('esposa', 9000), [
+      cue({ mode: 'confirm' }),
+    ])[0];
+    expect(confirmation?.action).toBe('confirm');
+    expect(confirmation?.action).not.toBe('play');
     expect(
       service.processTranscript(transcript('esposa', 13000), [cue({ mode: 'automatic' })])[0]
         ?.action,
