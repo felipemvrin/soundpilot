@@ -122,6 +122,7 @@ export class DashboardComponent implements OnDestroy {
   }
 
   removeCue(cue: Cue): void {
+    this.removePendingConfirmationByCueId(cue.id);
     this.persist(this.cues().filter((item) => item.id !== cue.id));
   }
 
@@ -242,13 +243,17 @@ export class DashboardComponent implements OnDestroy {
   }
 
   private removePendingConfirmation(event: CueEvent): void {
-    const timeout = this.confirmationTimeouts.get(event.cue.id);
+    this.removePendingConfirmationByCueId(event.cue.id);
+  }
+
+  private removePendingConfirmationByCueId(cueId: string): void {
+    const timeout = this.confirmationTimeouts.get(cueId);
     if (timeout !== undefined) {
       window.clearTimeout(timeout);
-      this.confirmationTimeouts.delete(event.cue.id);
+      this.confirmationTimeouts.delete(cueId);
     }
     this.pendingConfirmations.update((pending) =>
-      pending.filter((item) => item.event.cue.id !== event.cue.id),
+      pending.filter((item) => item.event.cue.id !== cueId),
     );
   }
 

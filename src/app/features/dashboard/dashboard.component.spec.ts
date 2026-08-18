@@ -121,4 +121,13 @@ describe('DashboardComponent confirmation queue', () => {
     component.ngOnDestroy();
     injector.destroy();
   });
+
+  it('clears pending confirmations when the cue is removed', () => {
+    const { component, injector } = createDashboard();
+    component.processTranscript(transcript);
+    component.removeCue(cue);
+    expect(component.pendingConfirmations()).toHaveLength(0);
+    component.ngOnDestroy();
+    injector.destroy();
+  });
 });
