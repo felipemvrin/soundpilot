@@ -6,6 +6,7 @@ import { AudioPlaybackEvent, Cue, NowPlaying } from '../models/cue.model';
 @Injectable({ providedIn: 'root' })
 export class AudioPlayerService {
   private readonly players = new Map<string, HTMLAudioElement>();
+  private readonly cueVolumes = new Map<string, number>();
   private readonly playbackSubject = new Subject<AudioPlaybackEvent>();
   private masterVolume = 1;
   private lastCue?: Cue;
@@ -25,6 +26,7 @@ export class AudioPlayerService {
     player.volume = this.clamp(cue.volume * this.masterVolume);
     player.addEventListener('ended', () => this.handleEnded(cue.id), { once: true });
     this.players.set(cue.id, player);
+    this.cueVolumes.set(cue.id, cue.volume);
     try {
       await player.play();
       const timestamp = Date.now();
@@ -40,6 +42,7 @@ export class AudioPlayerService {
       return 'played';
     } catch {
       this.players.delete(cue.id);
+      this.cueVolumes.delete(cue.id);
       this.emit(cue.id, 'error');
       return 'error';
     }
@@ -57,6 +60,7 @@ export class AudioPlayerService {
     player.pause();
     player.currentTime = 0;
     this.players.delete(cueId);
+    this.cueVolumes.delete(cueId);
     this.clearNowPlaying(cueId);
     this.emit(cueId, 'stopped');
   }
@@ -67,6 +71,9 @@ export class AudioPlayerService {
 
   setMasterVolume(volume: number): void {
     this.masterVolume = this.clamp(volume);
+    this.players.forEach((player, cueId) => {
+      player.volume = this.clamp((this.cueVolumes.get(cueId) ?? 1) * this.masterVolume);
+    });
   }
 
   getMasterVolume(): number {
@@ -75,6 +82,7 @@ export class AudioPlayerService {
 
   private handleEnded(cueId: string): void {
     this.players.delete(cueId);
+    this.cueVolumes.delete(cueId);
     this.clearNowPlaying(cueId);
     this.emit(cueId, 'ended');
   }
