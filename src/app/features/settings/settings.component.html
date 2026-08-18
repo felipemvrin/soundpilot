@@ -1,0 +1,134 @@
+<main class="settings">
+  <header class="head">
+    <div>
+      <span class="eyebrow">Settings</span>
+      <h1>General configuration</h1>
+    </div>
+    <span class="hint">Not needed during a live show.</span>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-label="Microphone">
+      <span class="eyebrow">Microphone</span>
+      <div class="row">
+        <span
+          [class]="microphone.isListening() ? 'state state--listening state--live' : 'state'"
+          role="status"
+        >
+          {{ microphone.isListening() ? 'Listening' : 'Ready' }}
+        </span>
+        <app-audio-level-meter [level]="microphone.level()" />
+      </div>
+      <div class="row">
+        <button type="button" class="btn" (click)="session.toggleListening()">
+          {{ microphone.isListening() ? 'Stop listening' : 'Start listening' }}
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="refreshDevices()">
+          Refresh devices
+        </button>
+      </div>
+      @if (devicesError()) {
+        <p class="hint">{{ devicesError() }}</p>
+      } @else {
+        <ul class="devices">
+          @for (device of inputs(); track device.id) {
+            <li>{{ device.label }}</li>
+          } @empty {
+            <li class="muted">No input device detected.</li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="panel" aria-label="Speech recognition">
+      <span class="eyebrow">Speech recognition</span>
+      <p class="hint">
+        {{
+          speech.available()
+            ? 'Web Speech API available in this browser.'
+            : 'Web Speech API unavailable. Cues can only be fired manually.'
+        }}
+      </p>
+      <label class="field">
+        <span class="eyebrow">Recognition language</span>
+        <select
+          [value]="speech.language()"
+          [disabled]="!speech.available()"
+          (change)="setLanguage($any($event.target).value)"
+        >
+          @for (language of languages; track language.value) {
+            <option [value]="language.value">{{ language.label }}</option>
+          }
+        </select>
+      </label>
+    </section>
+
+    <section class="panel" aria-label="Audio output">
+      <span class="eyebrow">Audio output</span>
+      <label class="field">
+        <span class="eyebrow">Master volume — {{ volumePercent() }}%</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          [value]="volumePercent()"
+          (input)="setVolume($any($event.target).value)"
+        />
+      </label>
+      <button
+        type="button"
+        class="btn"
+        [attr.aria-pressed]="session.muted()"
+        (click)="session.toggleMute()"
+      >
+        {{ session.muted() ? 'Unmute output' : 'Mute output' }}
+      </button>
+      <ul class="devices">
+        @for (device of outputs(); track device.id) {
+          <li>{{ device.label }}</li>
+        } @empty {
+          <li class="muted">Output devices are not listed by this browser.</li>
+        }
+      </ul>
+    </section>
+
+    <section class="panel" aria-label="Keyboard shortcuts">
+      <span class="eyebrow">Keyboard shortcuts</span>
+      <ul class="shortcuts">
+        <li><span class="kbd">SPACE</span> Play / confirm pending cue</li>
+        <li><span class="kbd">ENTER</span> Confirm pending cue</li>
+        <li><span class="kbd">ESC</span> Ignore pending cue</li>
+        <li><span class="kbd">P</span> Start / pause listening</li>
+        <li><span class="kbd">M</span> Mute / unmute output</li>
+        <li><span class="kbd">S</span> Stop playback</li>
+        <li><span class="kbd">R</span> Replay last cue</li>
+        <li><span class="kbd">F1-F9</span> Fire cue by shortcut</li>
+      </ul>
+      <p class="hint">
+        Shortcuts are ignored while typing in a form field. Per-cue shortcuts are configured in
+        <a routerLink="/cues">CUES</a>.
+      </p>
+    </section>
+
+    <section class="panel" aria-label="Preferences">
+      <span class="eyebrow">Preferences</span>
+      <div class="row">
+        <button
+          type="button"
+          class="btn btn--air"
+          [class.is-on]="session.airMode()"
+          [attr.aria-pressed]="session.airMode()"
+          (click)="session.toggleAirMode()"
+        >
+          {{ session.airMode() ? 'Exit air mode' : 'Enter air mode' }}
+        </button>
+        <a class="btn btn--ghost" routerLink="/live">Back to live</a>
+      </div>
+      <p class="hint">
+        Cues are stored in this browser (localStorage). Audio files are referenced for the current
+        session; reassign them in CUES after reopening SoundPilot.
+      </p>
+    </section>
+  </div>
+</main>

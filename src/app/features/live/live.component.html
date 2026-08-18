@@ -1,0 +1,217 @@
+<main class="live" [class.air]="session.airMode()">
+  <section class="ops" aria-label="Operation controls">
+    <div class="mic-block">
+      <span class="eyebrow">Microphone</span>
+      <span
+        [class]="session.isListening() ? 'state state--listening state--live' : 'state'"
+        role="status"
+      >
+        {{ session.isListening() ? 'LISTENING' : 'READY' }}
+      </span>
+    </div>
+    <button
+      type="button"
+      class="btn btn--lg"
+      [class.btn--primary]="!session.isListening()"
+      (click)="session.toggleListening()"
+    >
+      {{ session.isListening() ? 'Stop listening' : 'Start listening' }}
+    </button>
+    <span class="hint recog">
+      Speech recognition:
+      {{
+        session.speechAvailable() ? (session.isRecognizing() ? 'active' : 'idle') : 'unavailable'
+      }}
+    </span>
+    <div class="ops-right">
+      <button
+        type="button"
+        class="btn btn--ghost preflight-btn"
+        [disabled]="preflightRunning()"
+        (click)="runPreflight()"
+      >
+        {{ preflightRunning() ? 'Checking…' : 'Run preflight' }}
+      </button>
+      <button
+        type="button"
+        class="btn btn--air"
+        [class.is-on]="session.airMode()"
+        [attr.aria-pressed]="session.airMode()"
+        (click)="session.toggleAirMode()"
+      >
+        {{ session.airMode() ? 'Exit air mode' : 'Air mode' }}
+      </button>
+    </div>
+  </section>
+
+  @if (session.error(); as error) {
+    <section class="banner banner--error" role="alert">
+      <div>
+        <strong>{{ error.title }}</strong>
+        <p class="hint">{{ error.detail }}</p>
+      </div>
+      <div class="banner-actions">
+        @if (error.actionRoute) {
+          <a class="btn btn--ghost" [routerLink]="error.actionRoute">{{ error.actionLabel }}</a>
+        }
+        <button type="button" class="btn btn--ghost" (click)="session.dismissError()">
+          Dismiss
+        </button>
+      </div>
+    </section>
+  }
+
+  @if (report(); as result) {
+    <section class="banner" [class.banner--error]="!result.ready" aria-label="Preflight result">
+      <div class="preflight">
+        <strong>{{ result.ready ? 'READY FOR LIVE' : 'ATTENTION REQUIRED' }}</strong>
+        <ul>
+          @for (check of result.checks; track check.id) {
+            <li [class.failed]="!check.passed">
+              <span aria-hidden="true">{{ check.passed ? '✓' : '✗' }}</span>
+              <span class="check-label">{{ check.label }}</span>
+              <span class="hint">{{ check.detail }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+      <div class="banner-actions">
+        <button type="button" class="btn btn--ghost" (click)="dismissPreflight()">Close</button>
+      </div>
+    </section>
+  }
+
+  @for (pending of session.pendingConfirmations(); track pending.event.cue.id) {
+    <section
+      class="confirm"
+      role="alertdialog"
+      aria-live="assertive"
+      [attr.aria-label]="'Confirm cue ' + pending.event.cue.name"
+    >
+      <div class="confirm-info">
+        <span class="eyebrow"
+          >Confirm cue · expires in {{ session.remainingConfirmationSeconds(pending) }}s</span
+        >
+        <h2>{{ pending.event.cue.name }}</h2>
+        <p class="hint">"{{ pending.event.transcript.text }}"</p>
+      </div>
+      <app-confidence-badge [confidence]="pending.confidence" [level]="pending.level" />
+      <div class="confirm-actions">
+        <button type="button" class="btn btn--primary btn--lg" (click)="confirm(pending)">
+          Play <span class="kbd">SPACE</span>
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="session.ignorePending(pending)">
+          Ignore <span class="kbd">ESC</span>
+        </button>
+      </div>
+    </section>
+  }
+
+  <div class="grid">
+    <section class="panel transcript" aria-label="Live transcript">
+      <header class="panel-head">
+        <span class="eyebrow">Live transcript</span>
+        @if (session.transcript(); as transcript) {
+          <time>{{ transcript.timestamp | date: 'HH:mm:ss' }}</time>
+        }
+      </header>
+      <p class="phrase" aria-live="polite">
+        @for (segment of transcriptSegments(); track $index) {
+          <span [class.match]="segment.match">{{ segment.text }}</span>
+        } @empty {
+          <span class="muted">Waiting for speech...</span>
+        }
+      </p>
+    </section>
+
+    <section class="panel detected" aria-label="Detected cue">
+      <span class="eyebrow">Cue detected</span>
+      @if (session.detection(); as detection) {
+        <h2 class="cue-name">{{ detection.event.cue.name }}</h2>
+        <p class="trigger">Trigger: {{ detection.event.trigger.value }}</p>
+        <app-confidence-badge [confidence]="detection.confidence" [level]="detection.level" />
+      } @else {
+        <p class="muted empty">No cue detected yet.</p>
+      }
+    </section>
+
+    <section class="panel action" aria-label="Playback action">
+      <span class="eyebrow">Action</span>
+      @if (session.nowPlaying(); as playing) {
+        <div class="action-body">
+          <span class="state state--playing state--live">Playing</span>
+          <strong class="action-cue">{{ playing.cueName }}</strong>
+          <span class="muted">{{ elapsedLabel() }}</span>
+        </div>
+      } @else if (session.lastPlayed(); as last) {
+        <div class="action-body">
+          <span class="state state--played">Played</span>
+          <strong class="action-cue">{{ last.cueName }}</strong>
+          <span class="muted">{{ last.timestamp | date: 'HH:mm:ss' }}</span>
+        </div>
+      } @else {
+        <p class="muted empty">Idle. Nothing has been fired yet.</p>
+      }
+      <div class="action-buttons">
+        <button
+          type="button"
+          class="btn"
+          [disabled]="!session.nowPlaying()"
+          (click)="session.stopPlayback()"
+        >
+          Stop <span class="kbd">S</span>
+        </button>
+        <button
+          type="button"
+          class="btn"
+          [disabled]="!session.lastPlayed()"
+          (click)="session.replayLast()"
+        >
+          Replay <span class="kbd">R</span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel cues-strip" aria-label="Active cues">
+    <header class="panel-head">
+      <span class="eyebrow">Active cues</span>
+      <a class="btn btn--ghost" routerLink="/cues">+ Add cue</a>
+    </header>
+    <div class="chips">
+      @for (cue of session.cues(); track cue.id) {
+        <app-cue-status-chip
+          [cue]="cue"
+          [status]="session.runtimeStatus(cue)"
+          (fire)="playCue($event)"
+        />
+      } @empty {
+        <p class="muted">No cues configured. Create one in the CUES section.</p>
+      }
+    </div>
+  </section>
+
+  <section class="panel events" aria-label="Recent events">
+    <header class="panel-head">
+      <span class="eyebrow">Recent events</span>
+      @if (session.lastPlayed(); as last) {
+        <span class="last-played"
+          >Last played: <strong>{{ last.cueName }}</strong>
+          {{ last.timestamp | date: 'HH:mm:ss' }}</span
+        >
+      }
+    </header>
+    <app-event-log [events]="session.events()" />
+  </section>
+
+  <footer class="shortcuts" aria-label="Keyboard shortcuts">
+    <span><span class="kbd">SPACE</span> Play / Confirm</span>
+    <span><span class="kbd">ENTER</span> Confirm</span>
+    <span><span class="kbd">ESC</span> Ignore</span>
+    <span><span class="kbd">P</span> Pause listening</span>
+    <span><span class="kbd">M</span> {{ session.muted() ? 'Unmute' : 'Mute' }}</span>
+    <span><span class="kbd">S</span> Stop</span>
+    <span><span class="kbd">R</span> Replay last</span>
+    <span><span class="kbd">F1-F9</span> Fire cue</span>
+  </footer>
+</main>

@@ -1,0 +1,210 @@
+<main class="cues">
+  <header class="head">
+    <div>
+      <span class="eyebrow">Cue manager</span>
+      <h1>Configured cues</h1>
+    </div>
+    <span class="muted">{{ session.cues().length }} cues</span>
+  </header>
+
+  <section class="list" aria-label="Cue list">
+    @for (cue of session.cues(); track cue.id) {
+      <article class="panel cue" [class.disabled]="!cue.enabled">
+        <div class="identity">
+          <h2>{{ cue.name }}</h2>
+          <p class="hint">{{ cue.audioName ?? (cue.audioFile ? 'audio assigned' : 'no audio') }}</p>
+          <span [class]="cue.enabled ? 'state state--listening' : 'state state--disabled'">
+            {{ cue.enabled ? 'Active' : 'Disabled' }}
+          </span>
+        </div>
+
+        <dl class="meta">
+          <div>
+            <dt class="eyebrow">Triggers</dt>
+            <dd class="triggers">
+              @for (trigger of cue.triggers; track trigger.id) {
+                <span class="tag">{{ trigger.value }}</span>
+              } @empty {
+                <span class="muted">none</span>
+              }
+            </dd>
+          </div>
+          <div>
+            <dt class="eyebrow">Mode</dt>
+            <dd>{{ modeLabel(cue.mode) }}</dd>
+          </div>
+          <div>
+            <dt class="eyebrow">Cooldown</dt>
+            <dd>
+              {{ cooldownLabel(cue) }}
+              <span class="hint">Prevents repeated triggers</span>
+            </dd>
+          </div>
+          <div>
+            <dt class="eyebrow">Confidence</dt>
+            <dd>
+              {{ confidenceLabel(cue) }}
+              <span class="hint">Minimum to fire automatically</span>
+            </dd>
+          </div>
+          <div>
+            <dt class="eyebrow">Shortcut</dt>
+            <dd>{{ cue.shortcut ?? '—' }}</dd>
+          </div>
+        </dl>
+
+        <div class="actions">
+          <button type="button" class="btn" (click)="testCue(cue)">Test</button>
+          <button type="button" class="btn" (click)="edit(cue)">Edit</button>
+          <details class="menu">
+            <summary class="btn btn--ghost" aria-label="More actions for {{ cue.name }}">…</summary>
+            <div class="menu-body">
+              <label class="btn btn--ghost file">
+                {{ cue.audioFile ? 'Replace audio' : 'Assign audio' }}
+                <input
+                  type="file"
+                  accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4"
+                  (change)="replaceAudio(cue, $event)"
+                />
+              </label>
+              <button type="button" class="btn btn--ghost" (click)="session.toggleCue(cue)">
+                {{ cue.enabled ? 'Disable' : 'Enable' }}
+              </button>
+              <button type="button" class="btn btn--ghost btn--danger" (click)="remove(cue)">
+                Delete
+              </button>
+            </div>
+          </details>
+        </div>
+
+        @if (testResult(); as result) {
+          @if (result.cueId === cue.id) {
+            <p class="test" [class.failed]="!result.ok" role="status">
+              <span aria-hidden="true">{{ result.ok ? '✓' : '✗' }}</span> {{ result.message }}
+            </p>
+          }
+        }
+      </article>
+    } @empty {
+      <p class="muted">No cues yet. Create the first one below.</p>
+    }
+  </section>
+
+  <section class="panel editor" aria-label="Cue editor">
+    <header class="panel-head">
+      <span class="eyebrow">{{ isEditing() ? 'Edit cue' : 'New cue' }}</span>
+      @if (isEditing()) {
+        <button type="button" class="btn btn--ghost" (click)="resetDraft()">Cancel</button>
+      }
+    </header>
+
+    <div class="fields">
+      <label class="field">
+        <span class="eyebrow">Name</span>
+        <input
+          type="text"
+          [value]="draft().name"
+          (input)="patchName($any($event.target).value)"
+          placeholder="ESPOSA"
+          required
+        />
+      </label>
+
+      <label class="field">
+        <span class="eyebrow">Mode</span>
+        <select [value]="draft().mode" (change)="patchMode($any($event.target).value)">
+          <option value="automatic">Automatic — fire without asking</option>
+          <option value="confirm">Confirm — ask before firing</option>
+          <option value="manual">Manual — only keyboard / click</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="eyebrow">Cooldown (seconds)</span>
+        <input
+          type="number"
+          min="0"
+          step="0.5"
+          [value]="cooldownSeconds()"
+          (input)="patchCooldownSeconds($any($event.target).value)"
+        />
+        <span class="hint">Prevent repeated triggers for this long.</span>
+      </label>
+
+      <label class="field">
+        <span class="eyebrow">Confidence threshold (%)</span>
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          [value]="confidencePercent()"
+          (input)="patchConfidence($any($event.target).value)"
+        />
+        <span class="hint">Below this value the cue asks for confirmation.</span>
+      </label>
+
+      <label class="field">
+        <span class="eyebrow">Shortcut</span>
+        <select
+          [value]="draft().shortcut ?? ''"
+          (change)="patchShortcut($any($event.target).value)"
+        >
+          <option value="">None</option>
+          @for (shortcut of shortcuts; track shortcut) {
+            <option [value]="shortcut">{{ shortcut }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="eyebrow">Audio file</span>
+        <input
+          type="file"
+          accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4"
+          (change)="selectDraftAudio($event)"
+        />
+        <span class="hint">{{ draft().audioName ?? 'No file selected' }}</span>
+      </label>
+    </div>
+
+    <div class="field triggers-field">
+      <span class="eyebrow">Triggers</span>
+      <div class="trigger-editor">
+        @for (trigger of draft().triggers; track trigger.id) {
+          <span class="tag">
+            {{ trigger.value }}
+            <button
+              type="button"
+              class="remove"
+              [attr.aria-label]="'Remove trigger ' + trigger.value"
+              (click)="removeTrigger(trigger.id)"
+            >
+              ×
+            </button>
+          </span>
+        }
+        <input
+          class="trigger-input"
+          type="text"
+          [value]="triggerInput()"
+          (input)="updateTriggerInput($any($event.target).value)"
+          (keydown.enter)="addTrigger()"
+          placeholder="Add trigger and press Enter"
+          aria-label="New trigger"
+        />
+        <button type="button" class="btn btn--ghost" (click)="addTrigger()">+</button>
+      </div>
+      <span class="hint">All triggers of a cue fire the same audio.</span>
+    </div>
+
+    <div class="editor-actions">
+      <button type="button" class="btn btn--primary" [disabled]="!canSave()" (click)="save()">
+        {{ isEditing() ? 'Save changes' : 'Create cue' }}
+      </button>
+      @if (!canSave()) {
+        <span class="hint">Enter a name and at least one trigger.</span>
+      }
+    </div>
+  </section>
+</main>

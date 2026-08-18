@@ -1,0 +1,31 @@
+<header class="topbar" [class.air]="airMode()">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">◈</span>
+    <span class="name">SoundPilot</span>
+    @if (airMode()) {
+      <span class="air-badge">ON AIR</span>
+    }
+  </div>
+
+  <nav aria-label="Main sections">
+    <a routerLink="/live" routerLinkActive="active" ariaCurrentWhenActive="page">LIVE</a>
+    <a routerLink="/cues" routerLinkActive="active" ariaCurrentWhenActive="page">CUES</a>
+    <a routerLink="/settings" routerLinkActive="active" ariaCurrentWhenActive="page">SETTINGS</a>
+  </nav>
+
+  <div class="status-area">
+    <span
+      [class]="'state no-dot ' + statusClass()"
+      [class.state--live]="status() === 'listening'"
+      role="status"
+    >
+      <span class="glyph" aria-hidden="true">{{ statusIcon() }}</span
+      >{{ statusLabel() }}
+    </span>
+    <span class="mic" [class.on]="micActive()">
+      MIC
+      <span class="sr-only">{{ micActive() ? 'active' : 'inactive' }}</span>
+      <app-audio-level-meter [level]="level()" />
+    </span>
+  </div>
+</header>

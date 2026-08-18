@@ -31,6 +31,7 @@ type RecognitionConstructor = new () => RecognitionLike;
 export class SpeechRecognitionService {
   readonly available = signal(this.getConstructor() !== undefined);
   readonly isRecognizing = signal(false);
+  readonly language = signal('es-ES');
   private readonly transcriptSubject = new Subject<TranscriptEvent>();
   private recognition?: RecognitionLike;
 
@@ -42,7 +43,7 @@ export class SpeechRecognitionService {
     this.recognition = new Recognition();
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
-    this.recognition.lang = 'es-ES';
+    this.recognition.lang = this.language();
     this.recognition.onresult = (event) => this.handleResult(event);
     this.recognition.onend = () => this.isRecognizing.set(false);
     this.recognition.onerror = () => this.isRecognizing.set(false);
