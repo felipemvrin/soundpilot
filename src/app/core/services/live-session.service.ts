@@ -245,7 +245,9 @@ export class LiveSessionService {
       }
     }
 
-    if (
+    if (cue.shortcut && !/^F[1-9]$/.test(cue.shortcut)) {
+      errors.shortcut = 'Shortcut must be between F1 and F9.';
+    } else if (
       cue.shortcut &&
       this.cues().some((item) => item.id !== cue.id && item.shortcut === cue.shortcut)
     ) {

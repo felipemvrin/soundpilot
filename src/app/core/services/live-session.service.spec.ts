@@ -230,4 +230,17 @@ describe('LiveSessionService cue configuration', () => {
     session.dispose();
     injector.destroy();
   });
+
+  it('rejects shortcuts outside the F1-F9 range', () => {
+    const { session, injector } = createSession();
+    const errors = session.validateCue({
+      ...cue,
+      id: 'invalid-shortcut-cue',
+      shortcut: 'F10',
+    });
+
+    expect(errors.shortcut).toBe('Shortcut must be between F1 and F9.');
+    session.dispose();
+    injector.destroy();
+  });
 });

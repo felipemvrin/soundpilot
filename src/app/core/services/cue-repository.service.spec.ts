@@ -54,4 +54,43 @@ describe('CueRepository', () => {
     repository.save(cues);
     expect(new CueRepository().load()).toEqual(cues);
   });
+
+  it('sanitizes invalid legacy values while loading cues', () => {
+    localStorage.setItem(
+      'soundpilot.cues.v1',
+      JSON.stringify([
+        {
+          id: 'legacy-invalid',
+          name: 'LEGACY',
+          triggers: [{ id: 'one', value: 'legacy trigger' }],
+          audioFile: { bad: true },
+          audioName: 123,
+          mode: 'unexpected',
+          enabled: 'yes',
+          cooldownMs: 1000,
+          volume: 1,
+          priority: 'unexpected',
+          confidenceThreshold: 3,
+          shortcut: 'f10',
+        },
+      ]),
+    );
+
+    expect(new CueRepository().load()).toEqual([
+      {
+        id: 'legacy-invalid',
+        name: 'LEGACY',
+        triggers: [{ id: 'one', value: 'legacy trigger' }],
+        audioFile: '',
+        audioName: undefined,
+        mode: 'automatic',
+        enabled: true,
+        cooldownMs: 1000,
+        volume: 1,
+        priority: 'normal',
+        confidenceThreshold: undefined,
+        shortcut: undefined,
+      },
+    ]);
+  });
 });
