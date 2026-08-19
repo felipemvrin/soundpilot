@@ -28,7 +28,6 @@ import { TriggerEngineService } from './trigger-engine.service';
 
 export const CONFIRMATION_TIMEOUT_MS = 15_000;
 export const DEFAULT_CONFIDENCE_THRESHOLD = 0.9;
-export const MIN_CONFIDENCE = 0.7;
 /** Detected match stays visible in the UI (MATCH DETECTED panel) for this long before fading back to LISTENING. */
 const DETECTION_HOLD_MS = 4_000;
 /** Interim (non-final) speech keeps the engine in the DETECTING state for this long after the last chunk. */
@@ -149,7 +148,7 @@ export class LiveSessionService {
       detecting: this.speechActivity(),
       initializing: this.initializing(),
       listening: this.isListening(),
-      paused: this.preflightApproved(),
+      paused: this.preflightApproved() && !this.isListening(),
     }),
   );
 
@@ -531,14 +530,6 @@ export class LiveSessionService {
     return Number.isFinite(transcript.confidence) && transcript.confidence > 0
       ? transcript.confidence
       : undefined;
-  }
-
-  confidenceLevel(confidence: number | undefined, cue?: Cue): ConfidenceLevel {
-    if (confidence === undefined) return 'unknown';
-    const threshold = cue?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
-    if (confidence >= threshold) return 'high';
-    if (confidence >= MIN_CONFIDENCE) return 'medium';
-    return 'low';
   }
 
   dispose(): void {

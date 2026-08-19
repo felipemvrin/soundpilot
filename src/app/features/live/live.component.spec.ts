@@ -85,6 +85,7 @@ const setup = (cues: Cue[] = [cue()]): Harness => {
 
 describe('LiveComponent', () => {
   afterEach(() => {
+    TestBed.inject(LiveSessionService).dispose();
     TestBed.resetTestingModule();
   });
 
