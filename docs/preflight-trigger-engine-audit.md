@@ -1,7 +1,7 @@
 # SoundPilot: Auditoria y plan de Fases 4 y 5
 
 Fecha: 2026-08-19  
-Branch: `audit/preflight-trigger-engine-ia`
+Branch: `feat/preflight-reactive-validation`
 
 ## Veredicto
 
@@ -49,7 +49,8 @@ La fuente de configuracion es `SettingsService`, persistida en localStorage.
 
 - La validacion no abre permanentemente el microfono ni arranca Speech Recognition.
 - La validacion de audio files comprueba acceso, no decodificacion completa.
-- Falta invalidar automaticamente el reporte al cambiar Settings o permisos.
+- La invalidación reactiva ya cubre Settings, permisos y `devicechange`; aún falta una política de
+  severidad configurable para permitir o impedir Air Mode.
 - Falta una politica de severidad configurable para permitir o impedir Air Mode.
 
 ## Fase 5: Trigger Engine
@@ -73,14 +74,17 @@ La fuente de configuracion es `SettingsService`, persistida en localStorage.
 - Resultados finales identicos en una ventana breve se deduplican.
 - Confidence ausente ya no autoriza reproduccion automatica.
 - Un rechazo por confidence no consume cooldown.
+- Un transcript con varios matches produce un único ganador: mayor especificidad, después mayor
+  prioridad y finalmente un desempate estable por `cue.id`.
+- `AudioEnginePort` y `AUDIO_ENGINE_PORT` desacoplan la decisión de trigger del adaptador actual
+  `AudioPlayerService`; el adaptador browser sigue siendo la implementación por defecto.
 
 ### Deuda restante
 
 - `matchConfidence` todavia no existe como calculo independiente: el matching actual es exacto.
 - `sensitivity` necesita una definicion de producto antes de conectarse; no debe alterar el matching
   de forma arbitraria.
-- Falta una politica entre cues con keywords solapadas y prioridades distintas.
-- Falta mover la reproduccion detras de una interfaz de Audio Engine en Fase 6.
+- Falta sustituir el adaptador browser por el Audio Engine real en Fase 6.
 - Falta logging tecnico configurable con latencias y razones estructuradas.
 
 ## IA
@@ -114,10 +118,9 @@ fallback opt-in despues de medir falsos positivos y falsos negativos.
 
 ### P0
 
-1. Completar invalidacion reactiva de Preflight ante Settings, devices y permisos.
-2. Cubrir la inicializacion real del engine con pruebas de browser y hardware simulado.
-3. Terminar deduplicacion basada en resultados Speech Recognition, no solo texto final.
-4. Publicar el contrato de eventos como puerto para Audio Engine.
+1. Cubrir la inicializacion real del engine con pruebas de browser y hardware simulado.
+2. Medir resultados Speech Recognition acumulados en browsers reales, además de la deduplicación
+   de finales idénticos ya cubierta.
 
 ### P1
 
@@ -135,13 +138,12 @@ fallback opt-in despues de medir falsos positivos y falsos negativos.
 
 ## Validacion posterior al refactor
 
-- `npm test`: 80 tests passed en 12 archivos.
+- `npm test`: 96 tests passed en 13 archivos.
 - `npm run lint`: passed.
 - `npm run build`: passed, incluyendo compilacion y type checking.
 
 Persisten warnings no bloqueantes de Angular sobre `allowSignalWrites` deprecado en tests de
 Settings/LIVE. No son introducidos por este cambio y no afectan la compilacion.
 
-El branch queda preparado para continuar con el diseño del puerto de Audio Engine, pero no para
-declarar produccion de radio hasta completar la invalidacion reactiva de Preflight y las pruebas
-de hardware/browser indicadas en P0.
+El branch queda preparado para continuar con la implementación del Audio Engine, pero no para
+declarar producción de radio hasta completar las pruebas de hardware/browser indicadas en P0.

@@ -18,30 +18,42 @@ export class CueEngineService {
       return [];
     }
 
-    const events = cues
+    const candidates = cues
       .filter((cue) => cue.enabled)
       .flatMap((cue) => {
         const matchingTrigger = [...cue.triggers]
           .sort((left, right) => right.value.length - left.value.length)
           .find((trigger) => this.matches(normalizedTranscript, trigger.value));
 
-        if (!matchingTrigger || this.isCoolingDown(cue, transcript.timestamp)) {
-          return [];
-        }
-
-        this.lastTriggeredAt.set(cue.id, transcript.timestamp);
-        const event: CueEvent = {
-          cue,
-          trigger: matchingTrigger,
-          action: this.actionFor(cue.mode),
-          transcript,
-          timestamp: transcript.timestamp,
-        };
-        this.cueDetectedSubject.next(event);
-        return [event];
+        if (!matchingTrigger || this.isCoolingDown(cue, transcript.timestamp)) return [];
+        return [
+          {
+            cue,
+            trigger: matchingTrigger,
+            action: this.actionFor(cue.mode),
+            transcript,
+            timestamp: transcript.timestamp,
+          },
+        ];
       });
 
-    return events;
+    const [winner] = candidates.sort((left, right) => this.compareCandidates(left, right));
+    if (!winner) return [];
+    this.lastTriggeredAt.set(winner.cue.id, transcript.timestamp);
+    this.cueDetectedSubject.next(winner);
+    return [winner];
+  }
+
+  private compareCandidates(left: CueEvent, right: CueEvent): number {
+    const triggerSpecificity =
+      this.normalizer.normalize(right.trigger.value).length -
+      this.normalizer.normalize(left.trigger.value).length;
+    if (triggerSpecificity !== 0) return triggerSpecificity;
+
+    const priority = { high: 3, normal: 2, low: 1 } as const;
+    const priorityDifference = priority[right.cue.priority] - priority[left.cue.priority];
+    if (priorityDifference !== 0) return priorityDifference;
+    return left.cue.id.localeCompare(right.cue.id);
   }
 
   private matches(normalizedTranscript: string, trigger: string): boolean {

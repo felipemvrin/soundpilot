@@ -79,4 +79,35 @@ describe('CueEngineService', () => {
         ?.action,
     ).toBe('play');
   });
+
+  it('selects one global match by specificity before cue priority', () => {
+    const service = engine();
+    const short = cue({
+      id: 'short',
+      name: 'SHORT',
+      priority: 'high',
+      triggers: [{ id: 'short-trigger', value: 'esposa' }],
+    });
+    const specific = cue({
+      id: 'specific',
+      name: 'SPECIFIC',
+      priority: 'low',
+      triggers: [{ id: 'specific-trigger', value: 'mi esposa' }],
+    });
+
+    const events = service.processTranscript(transcript('mi esposa llego'), [short, specific]);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.cue.id).toBe('specific');
+  });
+
+  it('uses cue priority when matching triggers have equal specificity', () => {
+    const service = engine();
+    const low = cue({ id: 'low', name: 'LOW', priority: 'low' });
+    const high = cue({ id: 'high', name: 'HIGH', priority: 'high' });
+
+    const events = service.processTranscript(transcript('esposa llego'), [low, high]);
+
+    expect(events[0]?.cue.id).toBe('high');
+  });
 });

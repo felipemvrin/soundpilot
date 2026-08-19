@@ -16,6 +16,8 @@ import {
   SystemStatusSnapshot,
 } from '../models/settings.model';
 
+type PermissionStatusObject = globalThis.PermissionStatus;
+
 /**
  * Centralized settings management service.
  * Handles configuration persistence, device enumeration, and permission checks.
@@ -25,6 +27,7 @@ import {
 export class SettingsService {
   private readonly storageSubject = new BehaviorSubject<SettingsConfig>(this.loadFromStorage());
   private readonly devicesSubject = new BehaviorSubject<AudioDevice[]>([]);
+  private readonly watchedPermissions = new WeakSet<PermissionStatusObject>();
 
   readonly settings = signal<SettingsConfig>(this.loadFromStorage());
   readonly audioDevices = signal<AudioDevice[]>([]);
@@ -54,6 +57,9 @@ export class SettingsService {
     // Enumerate devices on initialization
     void this.enumerateDevices();
     void this.checkPermissions();
+    navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+      void this.enumerateDevices();
+    });
   }
 
   /**
@@ -268,6 +274,10 @@ export class SettingsService {
 
     try {
       const result = await navigator.permissions.query({ name });
+      if (!this.watchedPermissions.has(result)) {
+        this.watchedPermissions.add(result);
+        result.addEventListener?.('change', () => void this.checkPermissions());
+      }
       return this.mapPermissionState(result.state);
     } catch {
       return this.fallbackPermissionStatus(name);

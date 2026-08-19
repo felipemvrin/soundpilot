@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 
 import { AudioPlayerService } from '../audio/audio-player.service';
+import { AUDIO_ENGINE_PORT, AudioEnginePort } from '../audio/audio-engine.port';
 import { MicrophoneService } from '../audio/microphone.service';
 import {
   ConfidenceLevel,
@@ -74,6 +75,8 @@ export class LiveSessionService {
   private readonly engine = inject(CueEngineService);
   private readonly repository = inject(CueRepository);
   private readonly player = inject(AudioPlayerService);
+  private readonly audioEngine: AudioEnginePort =
+    inject(AUDIO_ENGINE_PORT, { optional: true }) ?? this.player;
   private readonly normalizer = inject(TextNormalizerService);
   private readonly triggerEngine = inject(TriggerEngineService);
   private readonly subscriptions = new Subscription();
@@ -220,6 +223,10 @@ export class LiveSessionService {
     if (approved && this.error()?.title === PREFLIGHT_AIR_MODE_ERROR_TITLE) {
       this.error.set(undefined);
     }
+  }
+
+  invalidatePreflight(): void {
+    this.preflightApproved.set(false);
   }
 
   toggleAirMode(): void {
@@ -380,7 +387,7 @@ export class LiveSessionService {
   // --------------------------------------------------------------- playback
 
   async playCue(cue: Cue): Promise<void> {
-    const result = await this.player.play(cue);
+    const result = await this.audioEngine.play(cue);
     this.record({
       cueId: cue.id,
       cueName: cue.name,
@@ -393,7 +400,7 @@ export class LiveSessionService {
   stopPlayback(): void {
     const playing = this.nowPlaying();
     if (!playing) return;
-    this.player.stop(playing.cueId);
+    this.audioEngine.stop(playing.cueId);
     this.record({
       cueId: playing.cueId,
       cueName: playing.cueName,
@@ -421,7 +428,7 @@ export class LiveSessionService {
   async confirmPending(pending: PendingConfirmation): Promise<void> {
     const { event } = pending;
     this.removePendingConfirmation(event);
-    const result = await this.player.play(event.cue);
+    const result = await this.audioEngine.play(event.cue);
     this.record({
       cueId: event.cue.id,
       cueName: event.cue.name,
@@ -579,13 +586,13 @@ export class LiveSessionService {
     this.playedFlash.forEach((timeout) => clearTimeout(timeout));
     this.playedFlash.clear();
     this.stopListening();
-    this.player.stopAll();
+    this.audioEngine.stopAll();
   }
 
   // ------------------------------------------------------------- internals
 
   private async playDetected(event: CueEvent, confidence?: number): Promise<void> {
-    const result = await this.player.play(event.cue);
+    const result = await this.audioEngine.play(event.cue);
     this.record({
       cueId: event.cue.id,
       cueName: event.cue.name,

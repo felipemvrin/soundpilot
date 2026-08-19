@@ -42,4 +42,32 @@ describe('SettingsService', () => {
       });
     });
   });
+
+  it('refreshes devices when the browser reports a device change', async () => {
+    let onDeviceChange: (() => void) | undefined;
+    const enumerateDevices = vi.fn().mockResolvedValue([]);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        enumerateDevices,
+        getUserMedia: vi.fn(),
+        addEventListener: vi.fn((event: string, listener: () => void) => {
+          if (event === 'devicechange') onDeviceChange = listener;
+        }),
+      },
+    });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn().mockResolvedValue({ state: 'granted' }) },
+    });
+
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), SettingsService],
+    });
+    TestBed.inject(SettingsService);
+    await vi.waitFor(() => expect(enumerateDevices).toHaveBeenCalledOnce());
+
+    onDeviceChange?.();
+    await vi.waitFor(() => expect(enumerateDevices).toHaveBeenCalledTimes(2));
+  });
 });
