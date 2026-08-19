@@ -61,6 +61,15 @@
     </section>
   }
 
+  @if (preflightRunning()) {
+    <section class="banner preflight-progress" aria-live="polite" aria-label="Preflight progress">
+      <div>
+        <strong>RUNNING PREFLIGHT</strong>
+        <p class="hint">{{ preflightProgress() }}</p>
+      </div>
+    </section>
+  }
+
   @if (report(); as result) {
     <section
       class="banner preflight-banner"

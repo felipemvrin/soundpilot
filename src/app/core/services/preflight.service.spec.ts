@@ -81,6 +81,19 @@ describe('PreflightService', () => {
     injector.destroy();
   });
 
+  it('emits the active check while preflight is running', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService();
+    const progress: string[] = [];
+
+    await service.run([cue()], (message) => progress.push(message));
+
+    expect(progress).toContain('Checking microphone...');
+    expect(progress).toContain('Checking audio files...');
+    expect(progress.at(-1)).toBe('Checking disabled cues...');
+    injector.destroy();
+  });
+
   it('separates a denied microphone permission from no input device', async () => {
     setBrowserState(devices(), 'denied');
     const { service, injector } = createService();
@@ -179,6 +192,24 @@ describe('PreflightService', () => {
 
     expect(report.checks.find((check) => check.id === 'trigger-conflicts')?.status).toBe('fail');
     expect(report.checks.find((check) => check.id === 'shortcuts')?.status).toBe('warning');
+    injector.destroy();
+  });
+
+  it('fails a cue that contains an empty trigger alongside valid triggers', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService();
+    const report = await service.run([
+      cue({
+        triggers: [
+          { id: 'valid', value: 'intro' },
+          { id: 'empty', value: '  ' },
+        ],
+      }),
+    ]);
+
+    const triggers = report.checks.find((check) => check.id === 'triggers');
+    expect(triggers?.status).toBe('fail');
+    expect(triggers?.details).toContain('INTRO: empty trigger.');
     injector.destroy();
   });
 

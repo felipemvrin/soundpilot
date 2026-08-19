@@ -5,31 +5,38 @@ import { PreflightCheck, PreflightReport, PreflightStatus } from '../models/sess
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { TextNormalizerService } from './text-normalizer.service';
 
+export type PreflightProgressHandler = (message: string) => void;
+
 @Injectable({ providedIn: 'root' })
 export class PreflightService {
   private readonly speech = inject(SpeechRecognitionService);
   private readonly normalizer = inject(TextNormalizerService);
 
-  async run(cues: readonly Cue[]): Promise<PreflightReport> {
+  async run(cues: readonly Cue[], onProgress?: PreflightProgressHandler): Promise<PreflightReport> {
+    onProgress?.('Collecting system state...');
     const [devices, microphonePermission] = await Promise.all([
       this.enumerateDevices(),
       this.microphonePermission(),
     ]);
-    const checks: PreflightCheck[] = [
-      this.microphoneCheck(devices, microphonePermission),
-      this.speechCheck(),
-      this.outputCheck(devices),
-      this.cuesLoadedCheck(cues),
-      await this.audioFilesCheck(cues),
-      this.triggerConfigCheck(cues),
-      this.duplicateTriggersCheck(cues),
-      this.duplicateNamesCheck(cues),
-      this.shortcutsCheck(cues),
-      this.modeCheck(cues),
-      this.confidenceCheck(cues),
-      this.cooldownCheck(cues),
-      this.disabledCuesCheck(cues),
-    ];
+    const checks: PreflightCheck[] = [];
+    const addCheck = (message: string, check: PreflightCheck): void => {
+      onProgress?.(message);
+      checks.push(check);
+    };
+    addCheck('Checking microphone...', this.microphoneCheck(devices, microphonePermission));
+    addCheck('Checking speech recognition...', this.speechCheck());
+    addCheck('Checking audio output...', this.outputCheck(devices));
+    addCheck('Checking cues...', this.cuesLoadedCheck(cues));
+    onProgress?.('Checking audio files...');
+    checks.push(await this.audioFilesCheck(cues));
+    addCheck('Checking triggers...', this.triggerConfigCheck(cues));
+    addCheck('Checking trigger conflicts...', this.duplicateTriggersCheck(cues));
+    addCheck('Checking cue names...', this.duplicateNamesCheck(cues));
+    addCheck('Checking keyboard shortcuts...', this.shortcutsCheck(cues));
+    addCheck('Checking cue modes...', this.modeCheck(cues));
+    addCheck('Checking confidence thresholds...', this.confidenceCheck(cues));
+    addCheck('Checking cooldowns...', this.cooldownCheck(cues));
+    addCheck('Checking disabled cues...', this.disabledCuesCheck(cues));
     return { checks, status: this.statusFor(checks), timestamp: Date.now() };
   }
 
@@ -200,9 +207,17 @@ export class PreflightService {
   }
 
   private triggerConfigCheck(cues: readonly Cue[]): PreflightCheck {
-    const invalid = cues.filter(
-      (cue) => cue.enabled && !cue.triggers.some((trigger) => trigger.value.trim()),
-    );
+    const invalid = cues
+      .filter(
+        (cue) =>
+          cue.enabled &&
+          (!cue.triggers.length || cue.triggers.some((trigger) => !trigger.value.trim())),
+      )
+      .map((cue) =>
+        cue.triggers.some((trigger) => !trigger.value.trim())
+          ? `${cue.name}: empty trigger.`
+          : `${cue.name}: trigger is required.`,
+      );
     return {
       id: 'triggers',
       label: 'Triggers',
@@ -211,7 +226,7 @@ export class PreflightService {
       message: invalid.length
         ? 'Some active cues have no valid trigger.'
         : 'All active cues have at least one trigger.',
-      details: invalid.map((cue) => `${cue.name}: trigger is required.`),
+      details: invalid,
       actionLabel: invalid.length ? 'Fix cues' : undefined,
       actionRoute: invalid.length ? '/cues' : undefined,
     };

@@ -35,6 +35,7 @@ export class LiveComponent {
 
   readonly report = signal<PreflightReport | undefined>(undefined);
   readonly preflightRunning = signal(false);
+  readonly preflightProgress = signal<string | undefined>(undefined);
   readonly outputTestRunning = signal(false);
   private readonly checkedCueState = signal<string | undefined>(undefined);
   readonly preflightOutdated = computed(
@@ -63,11 +64,17 @@ export class LiveComponent {
 
   async runPreflight(): Promise<void> {
     this.preflightRunning.set(true);
+    this.preflightProgress.set('Starting preflight...');
     try {
-      this.report.set(await this.preflight.run(this.session.cues()));
+      this.report.set(
+        await this.preflight.run(this.session.cues(), (message) =>
+          this.preflightProgress.set(message),
+        ),
+      );
       this.checkedCueState.set(this.cueState());
     } finally {
       this.preflightRunning.set(false);
+      this.preflightProgress.set(undefined);
     }
   }
 
