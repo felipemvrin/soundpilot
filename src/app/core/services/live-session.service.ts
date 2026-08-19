@@ -486,12 +486,20 @@ export class LiveSessionService {
         event.action === 'confirm' || (event.action === 'play' && level === 'medium');
       this.detection.set({ event, confidence, level, requiresConfirmation });
       this.lastDetectionAt.set(this.now());
-      if (event.cue.cooldownMs > 0) {
-        const expiresAt = this.now() + event.cue.cooldownMs;
-        this.cooldowns.update((map) => new Map(map).set(event.cue.id, expiresAt));
-      }
-
       if (!result.allowed) {
+        this.triggerEngine.emitDecision({
+          id: crypto.randomUUID(),
+          timestamp: transcript.timestamp,
+          state: 'matched',
+          cueId: event.cue.id,
+          cueName: event.cue.name,
+          keyword: event.trigger.value,
+          phrase: transcript.text,
+          recognitionConfidence: confidence,
+          decision: 'rejected',
+          reason: 'recognition-confidence-below-minimum',
+          source: 'speech-recognition',
+        });
         this.record({
           cueId: event.cue.id,
           cueName: event.cue.name,
@@ -504,12 +512,43 @@ export class LiveSessionService {
         continue;
       }
 
+      if (event.cue.cooldownMs > 0) {
+        const expiresAt = this.now() + event.cue.cooldownMs;
+        this.cooldowns.update((map) => new Map(map).set(event.cue.id, expiresAt));
+      }
+
       if (requiresConfirmation) {
+        this.triggerEngine.emitDecision({
+          id: crypto.randomUUID(),
+          timestamp: transcript.timestamp,
+          state: 'matched',
+          cueId: event.cue.id,
+          cueName: event.cue.name,
+          keyword: event.trigger.value,
+          phrase: transcript.text,
+          recognitionConfidence: confidence,
+          decision: 'pending',
+          reason: 'operator-confirmation-required',
+          source: 'speech-recognition',
+        });
         this.queueConfirmation(event, confidence, level);
         continue;
       }
 
       if (event.action === 'play') {
+        this.triggerEngine.emitDecision({
+          id: crypto.randomUUID(),
+          timestamp: transcript.timestamp,
+          state: 'triggering',
+          cueId: event.cue.id,
+          cueName: event.cue.name,
+          keyword: event.trigger.value,
+          phrase: transcript.text,
+          recognitionConfidence: confidence,
+          decision: 'accepted',
+          reason: 'automatic-cue-accepted',
+          source: 'speech-recognition',
+        });
         void this.playDetected(event, confidence);
         continue;
       }

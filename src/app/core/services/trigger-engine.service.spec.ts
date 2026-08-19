@@ -74,7 +74,7 @@ describe('TriggerEngineService confidence evaluation', () => {
   it('reports unknown level when confidence is unavailable', () => {
     const result = engine.evaluateConfidence(match, undefined, 0.9);
     expect(result.level).toBe('unknown');
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
   });
 });
 
@@ -141,5 +141,29 @@ describe('TriggerEngineService cooldown remaining', () => {
 
   it('never returns a negative value once expired', () => {
     expect(engine.cooldownRemainingMs(1000, 3000)).toBe(0);
+  });
+});
+
+describe('TriggerEngineService event contract', () => {
+  it('emits a decision event for downstream audio consumers', () => {
+    const engine = new TriggerEngineService();
+    const events: unknown[] = [];
+    const subscription = engine.triggerEvent$.subscribe((event) => events.push(event));
+
+    engine.emitDecision({
+      id: 'event-1',
+      timestamp: 1000,
+      state: 'triggering',
+      cueId: cue.id,
+      keyword: cue.triggers[0].value,
+      recognitionConfidence: 0.95,
+      decision: 'accepted',
+      reason: 'automatic-cue-accepted',
+      source: 'speech-recognition',
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ decision: 'accepted', cueId: cue.id });
+    subscription.unsubscribe();
   });
 });

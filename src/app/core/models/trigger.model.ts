@@ -55,5 +55,9 @@ export interface TriggerEvent {
   cueName?: string;
   keyword?: string;
   phrase?: string;
-  confidence?: number;
+  recognitionConfidence?: number;
+  matchConfidence?: number;
+  decision?: 'accepted' | 'rejected' | 'pending';
+  reason?: string;
+  source?: 'speech-recognition' | 'manual';
 }

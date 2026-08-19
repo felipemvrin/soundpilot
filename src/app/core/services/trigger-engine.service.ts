@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 
 import { ConfidenceLevel } from '../models/cue.model';
 import {
   DetectionResult,
   Match,
   TriggerEngineSnapshot,
+  TriggerEvent,
   TriggerState,
 } from '../models/trigger.model';
 
@@ -19,6 +21,10 @@ const MIN_CONFIDENCE = 0.7;
  */
 @Injectable({ providedIn: 'root' })
 export class TriggerEngineService {
+  private readonly triggerEventSubject = new Subject<TriggerEvent>();
+
+  readonly triggerEvent$ = this.triggerEventSubject.asObservable();
+
   /** Confidence Evaluation + Trigger Validation step of the detection pipeline. */
   evaluateConfidence(
     match: Match,
@@ -26,8 +32,17 @@ export class TriggerEngineService {
     threshold: number,
   ): DetectionResult {
     const level = this.confidenceLevel(confidence, threshold);
-    const allowed = !(match.action === 'play' && level === 'low');
+    const allowed =
+      match.action !== 'play' && level !== 'low'
+        ? true
+        : match.action !== 'play'
+          ? true
+          : confidence !== undefined && level !== 'low';
     return { match, confidence, level, allowed };
+  }
+
+  emitDecision(event: TriggerEvent): void {
+    this.triggerEventSubject.next(event);
   }
 
   confidenceLevel(confidence: number | undefined, threshold: number): ConfidenceLevel {

@@ -195,10 +195,10 @@ describe('LiveSessionService confidence routing', () => {
     injector.destroy();
   });
 
-  it('keeps the legacy behaviour when the engine reports no confidence', () => {
+  it('rejects automatic playback when the engine reports no confidence', () => {
     const { session, injector, player } = createSession('played', [automaticEvent(0)]);
     session.processTranscript({ ...transcript, confidence: 0 });
-    expect(player.play).toHaveBeenCalledWith(automatic);
+    expect(player.play).not.toHaveBeenCalled();
     session.dispose();
     injector.destroy();
   });

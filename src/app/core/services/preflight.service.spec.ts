@@ -2,9 +2,11 @@ import { createEnvironmentInjector, runInInjectionContext, signal } from '@angul
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Cue } from '../models/cue.model';
+import { DEFAULT_SETTINGS } from '../models/settings.model';
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { PREFLIGHT_API_TIMEOUT_MS, PreflightService } from './preflight.service';
 import { TextNormalizerService } from './text-normalizer.service';
+import { SettingsService } from './settings.service';
 
 const cue = (overrides: Partial<Cue> = {}): Cue => ({
   id: 'cue-1',
@@ -43,6 +45,10 @@ const createService = (speechAvailable = true) => {
       provide: TextNormalizerService,
       useValue: { normalize: (value: string) => value.trim().toLowerCase() },
     },
+    {
+      provide: SettingsService,
+      useValue: { settings: signal(DEFAULT_SETTINGS) },
+    },
   ]);
   return {
     injector,
@@ -54,6 +60,7 @@ const setBrowserState = (
   mediaDevices: MediaDeviceInfo[] | undefined,
   permission: PermissionState = 'granted',
 ) => {
+  vi.stubGlobal('AudioContext', class {});
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value:

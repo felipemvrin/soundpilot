@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Cue } from '../models/cue.model';
 import { PreflightCheck, PreflightReport, PreflightStatus } from '../models/session.model';
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
+import { SettingsService } from './settings.service';
 import { TextNormalizerService } from './text-normalizer.service';
 
 export type PreflightProgressHandler = (message: string) => void;
@@ -15,6 +16,7 @@ type AudioFileState = 'available' | 'unavailable' | 'timed-out';
 export class PreflightService {
   private readonly speech = inject(SpeechRecognitionService);
   private readonly normalizer = inject(TextNormalizerService);
+  private readonly settings = inject(SettingsService, { optional: true });
 
   async run(cues: readonly Cue[], onProgress?: PreflightProgressHandler): Promise<PreflightReport> {
     onProgress?.('Collecting system state...');
@@ -29,7 +31,9 @@ export class PreflightService {
     };
     addCheck('Checking microphone...', this.microphoneCheck(deviceResult, permissionResult));
     addCheck('Checking speech recognition...', this.speechCheck());
+    addCheck('Checking audio configuration...', this.audioConfigurationCheck(deviceResult.value));
     addCheck('Checking audio output...', this.outputCheck(deviceResult.value));
+    addCheck('Checking engine startup...', this.engineCheck(deviceResult, permissionResult));
     addCheck('Checking cues...', this.cuesLoadedCheck(cues));
     onProgress?.('Checking audio files...');
     checks.push(await this.audioFilesCheck(cues));
@@ -122,6 +126,19 @@ export class PreflightService {
       };
     }
     const inputs = deviceResult.value.filter((device) => device.kind === 'audioinput');
+    const selectedInput = this.settings?.settings().audio.inputDevice;
+    if (selectedInput && !inputs.some((device) => device.deviceId === selectedInput.id)) {
+      return {
+        id: 'microphone',
+        label: 'Selected input device unavailable',
+        status: 'fail',
+        severity: 'error',
+        message: `SoundPilot cannot access the selected input device: ${selectedInput.label}.`,
+        details: ['Select a connected input device in Settings.'],
+        actionLabel: 'Open settings',
+        actionRoute: '/settings',
+      };
+    }
     return {
       id: 'microphone',
       label: 'Microphone',
@@ -154,6 +171,19 @@ export class PreflightService {
 
   private outputCheck(devices: MediaDeviceInfo[] | undefined): PreflightCheck {
     const outputs = devices?.filter((device) => device.kind === 'audiooutput') ?? [];
+    const selectedOutput = this.settings?.settings().audio.outputDevice;
+    if (selectedOutput && !outputs.some((device) => device.deviceId === selectedOutput.id)) {
+      return {
+        id: 'output',
+        label: 'Selected output device unavailable',
+        status: 'fail',
+        severity: 'error',
+        message: `SoundPilot cannot access the selected output device: ${selectedOutput.label}.`,
+        details: ['Select a connected output device in Settings.'],
+        actionLabel: 'Open settings',
+        actionRoute: '/settings',
+      };
+    }
     if (outputs.length) {
       return {
         id: 'output',
@@ -177,6 +207,79 @@ export class PreflightService {
       actionLabel: canPlay ? 'Play test cue' : 'Open cues',
       actionRoute: canPlay ? undefined : '/cues',
       actionId: canPlay ? 'test-output' : undefined,
+    };
+  }
+
+  private audioConfigurationCheck(devices: MediaDeviceInfo[] | undefined): PreflightCheck {
+    const audio = this.settings?.settings().audio;
+    if (!audio) {
+      return {
+        id: 'audio-configuration',
+        label: 'Audio configuration',
+        status: 'warning',
+        severity: 'warning',
+        message: 'Audio configuration could not be verified.',
+        details: ['Open Settings and verify the selected audio configuration.'],
+        actionLabel: 'Open settings',
+        actionRoute: '/settings',
+      };
+    }
+    const validSampleRate = [44100, 48000, 96000].includes(audio.sampleRate);
+    const validChannels = audio.channels === 'mono' || audio.channels === 'stereo';
+    const inputModeSupported = audio.inputMode === 'microphone';
+    const selectedInputAvailable =
+      !audio.inputDevice || devices?.some((device) => device.deviceId === audio.inputDevice?.id);
+    const valid = validSampleRate && validChannels && inputModeSupported && selectedInputAvailable;
+    return {
+      id: 'audio-configuration',
+      label: 'Audio configuration',
+      status: valid ? 'pass' : 'fail',
+      severity: valid ? 'info' : 'error',
+      message: valid
+        ? `${audio.sampleRate} Hz, ${audio.channels}, ${audio.inputMode}.`
+        : 'Selected audio configuration is not supported.',
+      details: valid
+        ? undefined
+        : [
+            ...(!validSampleRate ? ['Unsupported sample rate.'] : []),
+            ...(!validChannels ? ['Unsupported channel configuration.'] : []),
+            ...(!inputModeSupported ? ['This input mode is not implemented yet.'] : []),
+            ...(!selectedInputAvailable ? ['Selected input device is unavailable.'] : []),
+          ],
+      actionLabel: valid ? undefined : 'Open settings',
+      actionRoute: valid ? undefined : '/settings',
+    };
+  }
+
+  private engineCheck(
+    deviceResult: TimedResult<MediaDeviceInfo[]>,
+    permissionResult: TimedResult<PermissionState>,
+  ): PreflightCheck {
+    const canCapture = typeof navigator.mediaDevices?.getUserMedia === 'function';
+    const canCreateAudioContext = typeof AudioContext !== 'undefined';
+    const permissionAllowsCapture = permissionResult.value !== 'denied';
+    const available =
+      canCapture &&
+      canCreateAudioContext &&
+      permissionAllowsCapture &&
+      !deviceResult.timedOut &&
+      !permissionResult.timedOut;
+    const unverifiable = deviceResult.timedOut || permissionResult.timedOut;
+    return {
+      id: 'engine',
+      label: 'Trigger Engine',
+      status: available ? 'pass' : unverifiable ? 'warning' : 'fail',
+      severity: available ? 'info' : unverifiable ? 'warning' : 'error',
+      message: available
+        ? 'Trigger Engine can initialize with the current browser capabilities.'
+        : unverifiable
+          ? 'Trigger Engine readiness could not be verified in time.'
+          : 'Trigger Engine cannot be initialized with the current browser capabilities.',
+      details: available
+        ? undefined
+        : ['Verify microphone permission, audio capture and Web Audio support.'],
+      actionLabel: available ? undefined : 'Open settings',
+      actionRoute: available ? undefined : '/settings',
     };
   }
 
