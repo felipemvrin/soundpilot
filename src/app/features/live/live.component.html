@@ -62,20 +62,87 @@
   }
 
   @if (report(); as result) {
-    <section class="banner" [class.banner--error]="!result.ready" aria-label="Preflight result">
+    <section
+      class="banner preflight-banner"
+      [class.banner--error]="result.status === 'attention-required'"
+      [class.banner--warning]="result.status === 'ready-with-warnings' || preflightOutdated()"
+      aria-label="Preflight result"
+      aria-live="polite"
+    >
       <div class="preflight">
-        <strong>{{ result.ready ? 'READY FOR LIVE' : 'ATTENTION REQUIRED' }}</strong>
+        <strong>
+          @if (preflightOutdated()) {
+            PREFLIGHT OUTDATED
+          } @else if (result.status === 'ready') {
+            READY FOR LIVE
+          } @else if (result.status === 'ready-with-warnings') {
+            READY WITH WARNINGS
+          } @else {
+            ATTENTION REQUIRED
+          }
+        </strong>
+        <span class="hint">Last checked {{ result.timestamp | date: 'HH:mm:ss' }}</span>
+        @if (preflightOutdated()) {
+          <p class="hint">
+            Configuration changed since the last preflight. Run it again before going live.
+          </p>
+        }
         <ul>
           @for (check of result.checks; track check.id) {
-            <li [class.failed]="!check.passed">
-              <span aria-hidden="true">{{ check.passed ? '✓' : '✗' }}</span>
-              <span class="check-label">{{ check.label }}</span>
-              <span class="hint">{{ check.detail }}</span>
+            <li [class]="'check check--' + check.status">
+              <details>
+                <summary>
+                  <span aria-hidden="true">{{
+                    check.status === 'pass' ? '✓' : check.status === 'warning' ? '!' : '✗'
+                  }}</span>
+                  <span class="check-label">{{ check.label }}</span>
+                  <span class="hint">{{ check.message }}</span>
+                </summary>
+                @if (check.details?.length || check.actionRoute || check.actionId) {
+                  <div class="check-details">
+                    @if (check.details?.length) {
+                      <ul>
+                        @for (detail of check.details; track detail) {
+                          <li>{{ detail }}</li>
+                        }
+                      </ul>
+                    }
+                    @if (check.actionRoute) {
+                      <a class="btn btn--ghost" [routerLink]="check.actionRoute">{{
+                        check.actionLabel
+                      }}</a>
+                    }
+                    @if (check.actionId === 'test-output') {
+                      <button
+                        type="button"
+                        class="btn btn--ghost"
+                        [disabled]="outputTestRunning()"
+                        (click)="testAudioOutput()"
+                      >
+                        {{ outputTestRunning() ? 'Testing playback...' : check.actionLabel }}
+                      </button>
+                    }
+                  </div>
+                }
+              </details>
             </li>
           }
         </ul>
       </div>
       <div class="banner-actions">
+        @if (result.status !== 'attention-required' && !preflightOutdated()) {
+          <button type="button" class="btn btn--primary" (click)="session.toggleAirMode()">
+            Enter air mode
+          </button>
+        }
+        <button
+          type="button"
+          class="btn btn--ghost"
+          [disabled]="preflightRunning()"
+          (click)="runPreflight()"
+        >
+          Run again
+        </button>
         <button type="button" class="btn btn--ghost" (click)="dismissPreflight()">Close</button>
       </div>
     </section>

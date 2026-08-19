@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 
 import { Cue } from '../../core/models/cue.model';
 import { PendingConfirmation, PreflightReport } from '../../core/models/session.model';
+import { AudioPlayerService } from '../../core/audio/audio-player.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
 import { PreflightService } from '../../core/services/preflight.service';
 import { TranscriptHighlighterService } from '../../core/services/transcript-highlighter.service';
@@ -29,10 +30,16 @@ const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 export class LiveComponent {
   readonly session = inject(LiveSessionService);
   private readonly preflight = inject(PreflightService);
+  private readonly player = inject(AudioPlayerService);
   private readonly highlighter = inject(TranscriptHighlighterService);
 
   readonly report = signal<PreflightReport | undefined>(undefined);
   readonly preflightRunning = signal(false);
+  readonly outputTestRunning = signal(false);
+  private readonly checkedCueState = signal<string | undefined>(undefined);
+  readonly preflightOutdated = computed(
+    () => this.report() !== undefined && this.checkedCueState() !== this.cueState(),
+  );
 
   readonly transcriptSegments = computed(() => {
     const transcript = this.session.transcript();
@@ -58,6 +65,7 @@ export class LiveComponent {
     this.preflightRunning.set(true);
     try {
       this.report.set(await this.preflight.run(this.session.cues()));
+      this.checkedCueState.set(this.cueState());
     } finally {
       this.preflightRunning.set(false);
     }
@@ -65,6 +73,41 @@ export class LiveComponent {
 
   dismissPreflight(): void {
     this.report.set(undefined);
+  }
+
+  async testAudioOutput(): Promise<void> {
+    const cue = this.session.enabledCues().find((item) => Boolean(item.audioFile));
+    if (!cue || this.outputTestRunning()) return;
+    this.outputTestRunning.set(true);
+    const playback = await this.player.play(cue);
+    this.outputTestRunning.set(false);
+    this.report.update((report) => {
+      if (!report) return report;
+      const checks = report.checks.map((check) =>
+        check.id !== 'output'
+          ? check
+          : playback === 'played'
+            ? {
+                ...check,
+                status: 'pass' as const,
+                severity: 'info' as const,
+                message: 'Test playback started successfully.',
+                details: [`Playing ${cue.name}. Confirm it is audible on the assigned output.`],
+                actionId: undefined,
+              }
+            : {
+                ...check,
+                status: 'fail' as const,
+                severity: 'error' as const,
+                message: 'Test playback failed.',
+                details: [
+                  'Check the output device, browser audio permissions and cue file format.',
+                ],
+                actionId: undefined,
+              },
+      );
+      return { ...report, checks, status: this.preflight.statusFor(checks) };
+    });
   }
 
   playCue(cue: Cue): void {
@@ -136,5 +179,9 @@ export class LiveComponent {
     const element = target as HTMLElement | null;
     if (!element) return false;
     return EDITABLE_TAGS.has(element.tagName) || element.isContentEditable;
+  }
+
+  private cueState(): string {
+    return JSON.stringify(this.session.cues());
   }
 }
