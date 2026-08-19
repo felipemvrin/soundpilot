@@ -314,20 +314,21 @@ export class PermissionsSectionComponent {
   }
 
   async requestMicrophonePermission(): Promise<void> {
+    let stream: MediaStream | undefined;
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      await this.settings$.checkPermissions();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      // Permission denied - permissions will be checked on next refresh
+      // Permission denied or unavailable - refresh the stored status below
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
+      await this.settings$.checkPermissions();
     }
   }
 
   async requestNotificationsPermission(): Promise<void> {
     if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        await this.settings$.checkPermissions();
-      }
+      await Notification.requestPermission();
+      await this.settings$.checkPermissions();
     }
   }
 }

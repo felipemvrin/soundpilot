@@ -53,6 +53,7 @@ export class SettingsService {
 
     // Enumerate devices on initialization
     void this.enumerateDevices();
+    void this.checkPermissions();
   }
 
   /**
@@ -246,36 +247,58 @@ export class SettingsService {
    * Query browser permissions API.
    */
   private async queryPermissions(): Promise<PermissionSettings> {
-    const permissions: PermissionSettings = {
-      microphone: await this.checkPermission('microphone'),
-      audioInput: await this.checkPermission('microphone'), // Same permission
-      notifications: await this.checkPermission('notifications'),
+    const [microphone, notifications] = await Promise.all([
+      this.checkPermission('microphone'),
+      this.checkPermission('notifications'),
+    ]);
+    return {
+      microphone,
+      audioInput: microphone,
+      notifications,
     };
-    return permissions;
   }
 
   /**
    * Check individual permission.
    */
   private async checkPermission(name: PermissionName): Promise<PermissionStatus> {
-    if (!navigator.permissions) {
-      return 'not-available';
+    if (!navigator.permissions?.query) {
+      return this.fallbackPermissionStatus(name);
     }
 
     try {
       const result = await navigator.permissions.query({ name });
-      switch (result.state) {
-        case 'granted':
-          return 'granted';
-        case 'denied':
-          return 'denied';
-        case 'prompt':
-          return 'prompt';
-        default:
-          return 'not-available';
-      }
+      return this.mapPermissionState(result.state);
     } catch {
-      return 'not-available';
+      return this.fallbackPermissionStatus(name);
+    }
+  }
+
+  private fallbackPermissionStatus(name: PermissionName): PermissionStatus {
+    if (name === 'microphone') {
+      return typeof navigator.mediaDevices?.getUserMedia === 'function'
+        ? 'prompt'
+        : 'not-available';
+    }
+    if (name === 'notifications' && typeof Notification !== 'undefined') {
+      return this.mapPermissionState(Notification.permission);
+    }
+    return 'not-available';
+  }
+
+  private mapPermissionState(
+    state: PermissionState | NotificationPermission | undefined,
+  ): PermissionStatus {
+    switch (state) {
+      case 'granted':
+        return 'granted';
+      case 'denied':
+        return 'denied';
+      case 'prompt':
+      case 'default':
+        return 'prompt';
+      default:
+        return 'not-available';
     }
   }
 

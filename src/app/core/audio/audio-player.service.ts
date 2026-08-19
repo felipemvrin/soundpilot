@@ -1,7 +1,8 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, Optional, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 
 import { AudioPlaybackEvent, Cue, NowPlaying } from '../models/cue.model';
+import { SettingsService } from '../services/settings.service';
 
 @Injectable({ providedIn: 'root' })
 export class AudioPlayerService {
@@ -10,6 +11,8 @@ export class AudioPlayerService {
   private readonly playbackSubject = new Subject<AudioPlaybackEvent>();
   private masterVolume = 1;
   private lastCue?: Cue;
+
+  constructor(@Optional() private readonly settings: SettingsService | null = null) {}
 
   readonly playback$ = this.playbackSubject.asObservable();
   readonly nowPlaying = signal<NowPlaying | undefined>(undefined);
@@ -28,6 +31,7 @@ export class AudioPlayerService {
     this.players.set(cue.id, player);
     this.cueVolumes.set(cue.id, cue.volume);
     try {
+      await this.applyOutputDevice(player);
       await player.play();
       const timestamp = Date.now();
       this.lastCue = cue;
@@ -93,6 +97,22 @@ export class AudioPlayerService {
 
   private emit(cueId: string, type: AudioPlaybackEvent['type']): void {
     this.playbackSubject.next({ cueId, type, timestamp: Date.now() });
+  }
+
+  private async applyOutputDevice(player: HTMLAudioElement): Promise<void> {
+    const deviceId = this.settings?.settings().audio.outputDevice?.id;
+    if (!deviceId) return;
+
+    const sinkAwarePlayer = player as HTMLAudioElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    };
+    if (typeof sinkAwarePlayer.setSinkId !== 'function') return;
+
+    try {
+      await sinkAwarePlayer.setSinkId(deviceId);
+    } catch {
+      // Fall back to the browser default output device
+    }
   }
 
   private clamp(value: number): number {
