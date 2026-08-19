@@ -37,6 +37,7 @@
         class="btn btn--air"
         [class.is-on]="session.airMode()"
         [attr.aria-pressed]="session.airMode()"
+        [disabled]="!session.airMode() && !session.preflightApproved()"
         (click)="session.toggleAirMode()"
       >
         {{ session.airMode() ? 'Exit air mode' : 'Air mode' }}

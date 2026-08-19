@@ -243,4 +243,33 @@ describe('LiveSessionService cue configuration', () => {
     session.dispose();
     injector.destroy();
   });
+
+  it('requires a current passing preflight before entering air mode', () => {
+    const { session, injector } = createSession();
+
+    session.toggleAirMode();
+    expect(session.airMode()).toBe(false);
+    expect(session.error()?.title).toBe('Run preflight before entering air mode');
+
+    session.recordPreflight('ready-with-warnings');
+    expect(session.error()).toBeUndefined();
+    session.error.set({
+      title: 'Microphone unavailable',
+      detail: 'Existing error should remain visible.',
+    });
+    session.toggleAirMode();
+    expect(session.airMode()).toBe(true);
+    expect(session.error()?.title).toBe('Microphone unavailable');
+
+    session.toggleAirMode();
+    expect(session.airMode()).toBe(false);
+
+    session.updateCue({ ...cue, name: 'UPDATED' });
+    session.toggleAirMode();
+    expect(session.airMode()).toBe(false);
+    expect(session.error()?.title).toBe('Run preflight before entering air mode');
+
+    session.dispose();
+    injector.destroy();
+  });
 });

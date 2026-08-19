@@ -106,6 +106,18 @@ describe('PreflightService', () => {
     injector.destroy();
   });
 
+  it('warns when microphone permission has not been granted yet', async () => {
+    setBrowserState(devices(), 'prompt');
+    const { service, injector } = createService();
+    const report = await service.run([cue()]);
+
+    const microphone = report.checks.find((check) => check.id === 'microphone');
+    expect(microphone?.status).toBe('warning');
+    expect(microphone?.message).toBe('Allow microphone access before going live.');
+    expect(report.status).toBe('ready-with-warnings');
+    injector.destroy();
+  });
+
   it('reports a missing microphone device separately from a permission error', async () => {
     setBrowserState(devices(0));
     const { service, injector } = createService();

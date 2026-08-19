@@ -119,12 +119,16 @@
           class="btn btn--air"
           [class.is-on]="session.airMode()"
           [attr.aria-pressed]="session.airMode()"
+          [disabled]="!session.airMode() && !session.preflightApproved()"
           (click)="session.toggleAirMode()"
         >
           {{ session.airMode() ? 'Exit air mode' : 'Enter air mode' }}
         </button>
         <a class="btn btn--ghost" routerLink="/live">Back to live</a>
       </div>
+      @if (!session.airMode() && !session.preflightApproved()) {
+        <p class="hint">Run preflight in LIVE before entering air mode.</p>
+      }
       <p class="hint">
         Cues are stored in this browser (localStorage). Audio files are referenced for the current
         session; reassign them in CUES after reopening SoundPilot.

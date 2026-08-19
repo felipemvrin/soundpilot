@@ -66,12 +66,12 @@ export class LiveComponent {
     this.preflightRunning.set(true);
     this.preflightProgress.set('Starting preflight...');
     try {
-      this.report.set(
-        await this.preflight.run(this.session.cues(), (message) =>
-          this.preflightProgress.set(message),
-        ),
+      const report = await this.preflight.run(this.session.cues(), (message) =>
+        this.preflightProgress.set(message),
       );
+      this.report.set(report);
       this.checkedCueState.set(this.cueState());
+      this.session.recordPreflight(report.status);
     } finally {
       this.preflightRunning.set(false);
       this.preflightProgress.set(undefined);
@@ -88,33 +88,32 @@ export class LiveComponent {
     this.outputTestRunning.set(true);
     const playback = await this.player.play(cue);
     this.outputTestRunning.set(false);
-    this.report.update((report) => {
-      if (!report) return report;
-      const checks = report.checks.map((check) =>
-        check.id !== 'output'
-          ? check
-          : playback === 'played'
-            ? {
-                ...check,
-                status: 'pass' as const,
-                severity: 'info' as const,
-                message: 'Test playback started successfully.',
-                details: [`Playing ${cue.name}. Confirm it is audible on the assigned output.`],
-                actionId: undefined,
-              }
-            : {
-                ...check,
-                status: 'fail' as const,
-                severity: 'error' as const,
-                message: 'Test playback failed.',
-                details: [
-                  'Check the output device, browser audio permissions and cue file format.',
-                ],
-                actionId: undefined,
-              },
-      );
-      return { ...report, checks, status: this.preflight.statusFor(checks) };
-    });
+    const report = this.report();
+    if (!report) return;
+    const checks = report.checks.map((check) =>
+      check.id !== 'output'
+        ? check
+        : playback === 'played'
+          ? {
+              ...check,
+              status: 'pass' as const,
+              severity: 'info' as const,
+              message: 'Test playback started successfully.',
+              details: [`Playing ${cue.name}. Confirm it is audible on the assigned output.`],
+              actionId: undefined,
+            }
+          : {
+              ...check,
+              status: 'fail' as const,
+              severity: 'error' as const,
+              message: 'Test playback failed.',
+              details: ['Check the output device, browser audio permissions and cue file format.'],
+              actionId: undefined,
+            },
+    );
+    const status = this.preflight.statusFor(checks);
+    this.report.set({ ...report, checks, status });
+    this.session.recordPreflight(status);
   }
 
   playCue(cue: Cue): void {

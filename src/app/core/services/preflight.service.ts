@@ -85,6 +85,18 @@ export class PreflightService {
         actionRoute: '/settings',
       };
     }
+    if (permissionResult.value === 'prompt') {
+      return {
+        id: 'microphone',
+        label: 'Microphone permission required',
+        status: 'warning',
+        severity: 'warning',
+        message: 'Allow microphone access before going live.',
+        details: ['Grant microphone access in the browser, then run preflight again.'],
+        actionLabel: 'Open settings',
+        actionRoute: '/settings',
+      };
+    }
     if (deviceResult.timedOut || permissionResult.timedOut) {
       return {
         id: 'microphone',
