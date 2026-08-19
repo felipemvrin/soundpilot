@@ -130,6 +130,19 @@ describe('LiveComponent', () => {
     );
   });
 
+  it('keeps only the latest words in the live transcript box', () => {
+    const { fixture, transcriptSubject } = setup([cue({ mode: 'manual' })]);
+    const words = Array.from({ length: 45 }, (_, index) => `word${index + 1}`);
+    transcriptSubject.next(transcript({ text: words.join(' ') }));
+    fixture.detectChanges();
+
+    const visibleText = fixture.nativeElement.querySelector('.transcript .phrase').textContent;
+    expect(visibleText).toContain('... word22 word23');
+    expect(visibleText).toContain('word45');
+    expect(visibleText).not.toContain('word1 ');
+    expect(visibleText).not.toContain('word21 ');
+  });
+
   it('shows MATCH DETECTED and the cue name once a keyword is detected', () => {
     const { fixture, session, transcriptSubject } = setup([cue({ mode: 'manual' })]);
     transcriptSubject.next(transcript());

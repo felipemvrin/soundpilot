@@ -20,6 +20,7 @@ import {
 } from '../../shared/components/system-status-panel/system-status-panel.component';
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
+const MAX_VISIBLE_TRANSCRIPT_WORDS = 24;
 
 const TRIGGER_STATE_LABEL: Record<TriggerState, string> = {
   idle: 'IDLE',
@@ -149,14 +150,23 @@ export class LiveComponent {
 
   readonly transcriptSegments = computed(() => {
     const transcript = this.session.transcript();
-    if (!transcript?.text) return [];
+    const visibleText = this.visibleTranscriptText(transcript?.text);
+    if (!visibleText) return [];
     const detection = this.session.detection();
-    const sameUtterance = detection?.event.transcript.text === transcript.text;
+    const sameUtterance =
+      transcript !== undefined && detection?.event.transcript.text === transcript.text;
     return this.highlighter.highlight(
-      transcript.text,
+      visibleText,
       sameUtterance ? detection?.event.trigger.value : undefined,
     );
   });
+
+  private visibleTranscriptText(text: string | undefined): string {
+    if (!text?.trim()) return '';
+    const words = text.trim().split(/\s+/);
+    if (words.length <= MAX_VISIBLE_TRANSCRIPT_WORDS) return words.join(' ');
+    return `... ${words.slice(-MAX_VISIBLE_TRANSCRIPT_WORDS).join(' ')}`;
+  }
 
   readonly elapsedLabel = computed(() => {
     const totalSeconds = Math.floor(this.session.playbackElapsedMs() / 1000);

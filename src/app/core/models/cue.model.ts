@@ -35,6 +35,8 @@ export interface Cue {
 
 export interface TranscriptEvent {
   text: string;
+  /** New recognition segment used for trigger matching while `text` may be cumulative. */
+  segmentText?: string;
   confidence: number;
   timestamp: number;
   isFinal: boolean;
@@ -52,6 +54,7 @@ export interface AudioPlaybackEvent {
   cueId: string;
   type: 'played' | 'stopped' | 'error' | 'ended';
   timestamp: number;
+  error?: string;
 }
 
 export interface NowPlaying {
