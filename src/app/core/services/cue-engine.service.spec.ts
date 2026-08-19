@@ -101,6 +101,35 @@ describe('CueEngineService', () => {
     expect(events[0]?.cue.id).toBe('specific');
   });
 
+  it('puts all matching candidates on cooldown, not just the winner', () => {
+    const service = engine();
+    const short = cue({
+      id: 'short',
+      name: 'SHORT',
+      priority: 'high',
+      triggers: [{ id: 'short-trigger', value: 'esposa' }],
+    });
+    const specific = cue({
+      id: 'specific',
+      name: 'SPECIFIC',
+      priority: 'low',
+      triggers: [{ id: 'specific-trigger', value: 'mi esposa' }],
+    });
+
+    // T=0: "mi esposa" matches both; specific wins
+    expect(
+      service.processTranscript(transcript('mi esposa', 1000), [short, specific]),
+    ).toHaveLength(1);
+
+    // T=2 (within cooldown): short lost but should also be on cooldown
+    expect(service.processTranscript(transcript('esposa', 2000), [short, specific])).toHaveLength(
+      0,
+    );
+
+    // T=5 (after cooldown): both are free again
+    expect(service.processTranscript(transcript('esposa', 6000), [short])).toHaveLength(1);
+  });
+
   it('uses cue priority when matching triggers have equal specificity', () => {
     const service = engine();
     const low = cue({ id: 'low', name: 'LOW', priority: 'low' });

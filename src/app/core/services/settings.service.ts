@@ -27,7 +27,7 @@ type PermissionStatusObject = globalThis.PermissionStatus;
 export class SettingsService {
   private readonly storageSubject = new BehaviorSubject<SettingsConfig>(this.loadFromStorage());
   private readonly devicesSubject = new BehaviorSubject<AudioDevice[]>([]);
-  private readonly watchedPermissions = new WeakSet<PermissionStatusObject>();
+  private readonly watchedPermissions = new Map<PermissionName, PermissionStatusObject>();
 
   readonly settings = signal<SettingsConfig>(this.loadFromStorage());
   readonly audioDevices = signal<AudioDevice[]>([]);
@@ -264,6 +264,10 @@ export class SettingsService {
     };
   }
 
+  private readonly onPermissionChange = (): void => {
+    void this.checkPermissions();
+  };
+
   /**
    * Check individual permission.
    */
@@ -274,9 +278,11 @@ export class SettingsService {
 
     try {
       const result = await navigator.permissions.query({ name });
-      if (!this.watchedPermissions.has(result)) {
-        this.watchedPermissions.add(result);
-        result.addEventListener?.('change', () => void this.checkPermissions());
+      const existing = this.watchedPermissions.get(name);
+      if (existing !== result) {
+        existing?.removeEventListener?.('change', this.onPermissionChange);
+        this.watchedPermissions.set(name, result);
+        result.addEventListener?.('change', this.onPermissionChange);
       }
       return this.mapPermissionState(result.state);
     } catch {

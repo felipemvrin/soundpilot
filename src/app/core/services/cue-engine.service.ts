@@ -39,7 +39,9 @@ export class CueEngineService {
 
     const [winner] = candidates.sort((left, right) => this.compareCandidates(left, right));
     if (!winner) return [];
-    this.lastTriggeredAt.set(winner.cue.id, transcript.timestamp);
+    for (const candidate of candidates) {
+      this.lastTriggeredAt.set(candidate.cue.id, transcript.timestamp);
+    }
     this.cueDetectedSubject.next(winner);
     return [winner];
   }

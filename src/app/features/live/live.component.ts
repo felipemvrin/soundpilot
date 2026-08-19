@@ -77,7 +77,6 @@ export class LiveComponent {
     JSON.stringify({
       settings: this.settings.settings(),
       devices: this.settings.audioDevices(),
-      permissions: this.settings.settings().permissions,
     }),
   );
   readonly preflightOutdated = computed(
