@@ -19,14 +19,19 @@ import {
   SessionEvent,
   SessionOutcome,
 } from '../models/session.model';
+import { TriggerState } from '../models/trigger.model';
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { CueEngineService } from './cue-engine.service';
 import { CueRepository } from './cue-repository.service';
 import { TextNormalizerService } from './text-normalizer.service';
+import { TriggerEngineService } from './trigger-engine.service';
 
 export const CONFIRMATION_TIMEOUT_MS = 15_000;
 export const DEFAULT_CONFIDENCE_THRESHOLD = 0.9;
-export const MIN_CONFIDENCE = 0.7;
+/** Detected match stays visible in the UI (MATCH DETECTED panel) for this long before fading back to LISTENING. */
+const DETECTION_HOLD_MS = 4_000;
+/** Interim (non-final) speech keeps the engine in the DETECTING state for this long after the last chunk. */
+const SPEECH_ACTIVITY_MS = 1_500;
 const MAX_EVENTS = 40;
 const PLAYED_FLASH_MS = 2_500;
 const PREFLIGHT_AIR_MODE_ERROR_TITLE = 'Run preflight before entering air mode';
@@ -70,6 +75,7 @@ export class LiveSessionService {
   private readonly repository = inject(CueRepository);
   private readonly player = inject(AudioPlayerService);
   private readonly normalizer = inject(TextNormalizerService);
+  private readonly triggerEngine = inject(TriggerEngineService);
   private readonly subscriptions = new Subscription();
   private readonly confirmationTimeouts = new Map<string, number>();
   private readonly playedFlash = new Map<string, number>();
@@ -88,8 +94,17 @@ export class LiveSessionService {
   readonly error = signal<OperationError | undefined>(undefined);
   readonly recentlyPlayed = signal<readonly string[]>([]);
 
+  /** True while `startListening()` is waiting on the microphone/speech APIs. */
+  readonly initializing = signal(false);
+  /** Timestamp of the last keyword match, used to hold the MATCH DETECTED panel visible briefly. */
+  readonly lastDetectionAt = signal<number | undefined>(undefined);
+  /** Per-cue cooldown expiry, mirrors `CueEngineService`'s internal bookkeeping for UI feedback. */
+  readonly cooldowns = signal<ReadonlyMap<string, number>>(new Map());
+
   readonly isListening = this.microphone.isListening;
   readonly audioLevel = this.microphone.level;
+  /** Real per-band frequency levels for waveform visualizers (e.g. LIVE LISTENING). */
+  readonly audioBands = this.microphone.bands;
   readonly speechAvailable = this.speech.available;
   readonly isRecognizing = this.speech.isRecognizing;
   readonly nowPlaying = this.player.nowPlaying;
@@ -105,6 +120,37 @@ export class LiveSessionService {
     if (this.isListening()) return 'listening';
     return 'ready';
   });
+
+  /** Whether a match is still within its short display window (MATCH DETECTED panel). */
+  readonly detectionActive = computed(() => {
+    const at = this.lastDetectionAt();
+    return at !== undefined && this.now() - at < DETECTION_HOLD_MS;
+  });
+
+  /** Whether interim speech has arrived recently enough to consider the engine actively DETECTING. */
+  readonly speechActivity = computed(() => {
+    const last = this.transcript();
+    return last !== undefined && this.now() - last.timestamp < SPEECH_ACTIVITY_MS;
+  });
+
+  /** True while any cue is still cooling down from a recent trigger. */
+  readonly cooldownActive = computed(() =>
+    [...this.cooldowns().values()].some((expiresAt) => expiresAt > this.now()),
+  );
+
+  /** Trigger Engine lifecycle state, meant to be shown directly in the LIVE view. */
+  readonly triggerState = computed<TriggerState>(() =>
+    this.triggerEngine.deriveState({
+      error: this.error() !== undefined,
+      triggering: this.nowPlaying() !== undefined,
+      matched: this.hasPendingConfirmations() || this.detectionActive(),
+      cooldownActive: this.cooldownActive(),
+      detecting: this.speechActivity(),
+      initializing: this.initializing(),
+      listening: this.isListening(),
+      paused: this.preflightApproved() && !this.isListening(),
+    }),
+  );
 
   readonly playbackElapsedMs = computed(() => {
     const playing = this.nowPlaying();
@@ -130,6 +176,7 @@ export class LiveSessionService {
 
   async startListening(): Promise<void> {
     if (this.isListening()) return;
+    this.initializing.set(true);
     try {
       await this.microphone.start();
       this.error.set(undefined);
@@ -153,6 +200,8 @@ export class LiveSessionService {
         actionLabel: 'Open settings',
         actionRoute: '/settings',
       });
+    } finally {
+      this.initializing.set(false);
     }
   }
 
@@ -412,6 +461,16 @@ export class LiveSessionService {
     return Math.max(0, Math.ceil((pending.expiresAt - this.now()) / 1_000));
   }
 
+  /** Milliseconds left in a cue's cooldown, for the ARMED TRIGGERS countdown display. */
+  cooldownRemainingMs(cueId: string): number {
+    return this.triggerEngine.cooldownRemainingMs(this.cooldowns().get(cueId), this.now());
+  }
+
+  /** Most recent session event fired by this cue, for the "Last: HH:mm:ss" trigger list hint. */
+  lastFiredAt(cueId: string): number | undefined {
+    return this.events().find((item) => item.cueId === cueId)?.timestamp;
+  }
+
   // ------------------------------------------------------------- detection
 
   processTranscript(transcript: TranscriptEvent): void {
@@ -420,12 +479,19 @@ export class LiveSessionService {
     const detected = this.engine.processTranscript(transcript, this.cues());
     for (const event of detected) {
       const confidence = this.confidenceOf(transcript);
-      const level = this.confidenceLevel(confidence, event.cue);
+      const threshold = event.cue.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
+      const result = this.triggerEngine.evaluateConfidence(event, confidence, threshold);
+      const level = result.level;
       const requiresConfirmation =
         event.action === 'confirm' || (event.action === 'play' && level === 'medium');
       this.detection.set({ event, confidence, level, requiresConfirmation });
+      this.lastDetectionAt.set(this.now());
+      if (event.cue.cooldownMs > 0) {
+        const expiresAt = this.now() + event.cue.cooldownMs;
+        this.cooldowns.update((map) => new Map(map).set(event.cue.id, expiresAt));
+      }
 
-      if (event.action === 'play' && level === 'low') {
+      if (!result.allowed) {
         this.record({
           cueId: event.cue.id,
           cueName: event.cue.name,
@@ -464,14 +530,6 @@ export class LiveSessionService {
     return Number.isFinite(transcript.confidence) && transcript.confidence > 0
       ? transcript.confidence
       : undefined;
-  }
-
-  confidenceLevel(confidence: number | undefined, cue?: Cue): ConfidenceLevel {
-    if (confidence === undefined) return 'unknown';
-    const threshold = cue?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
-    if (confidence >= threshold) return 'high';
-    if (confidence >= MIN_CONFIDENCE) return 'medium';
-    return 'low';
   }
 
   dispose(): void {

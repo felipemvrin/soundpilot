@@ -70,6 +70,84 @@ Microphone -> SpeechRecognitionService -> Transcript$
 
 `TextNormalizerService` keeps normalization independent. `CueEngineService` receives transcript events and configured cues without knowing the speech provider or audio implementation. `CueRepository` currently uses `localStorage` and can later move to IndexedDB or a backend.
 
+## Trigger Engine
+
+The Trigger Engine is the pipeline that turns live speech into a fired cue. It is split across three
+decoupled services so the UI never talks to matching/confidence logic directly:
+
+```text
+Audio Input (MicrophoneService)
+  -> Speech Recognition (SpeechRecognitionService) -> TranscriptEvent
+  -> Keyword Matching + Cooldown (CueEngineService) -> Match (CueEvent)
+  -> Confidence Evaluation (TriggerEngineService)   -> DetectionResult
+  -> Trigger Validation + Routing (LiveSessionService.processTranscript)
+  -> Cue Trigger (AudioPlayerService.play)
+  -> Feedback (SessionEvent activity log + LIVE view)
+```
+
+- **A `Trigger` is a `Cue`.** `src/app/core/models/trigger.model.ts` defines `Trigger`, `Keyword` and
+  `Match` as aliases over the existing `Cue`/`CueTrigger`/`CueEvent` models instead of duplicating
+  storage or validation. `DetectionResult` is the Trigger Engine's own output shape (`match`,
+  `confidence`, `level`, `allowed`).
+- **Keyword matching + cooldown** stay in `CueEngineService`: word-boundary matching against the
+  normalized transcript, longest-trigger-first, and per-cue cooldown enforcement
+  (`cooldownMs`, tracked per `cue.id`).
+- **Confidence evaluation** lives in `TriggerEngineService.evaluateConfidence()`: classifies a match
+  as `high` / `medium` / `low` / `unknown` against the cue's `confidenceThreshold` (falls back to
+  `DEFAULT_CONFIDENCE_THRESHOLD = 0.9`; anything below `MIN_CONFIDENCE = 0.7` is `low`), and marks it
+  `allowed` unless it's a low-confidence automatic trigger.
+- **State derivation** lives in `TriggerEngineService.deriveState()`, a pure function that turns a
+  snapshot of session signals into one `TriggerState`.
+
+### Trigger Engine states
+
+`idle -> initializing -> listening -> detecting -> matched -> triggering -> cooldown -> listening`
+(`paused` when explicitly stopped after preflight, `error` overrides everything else).
+
+| State          | Meaning                                                             | Shown in                                     |
+| -------------- | ------------------------------------------------------------------- | -------------------------------------------- |
+| `idle`         | Never started listening this session                                | LIVE header, System Status                   |
+| `initializing` | Waiting on microphone/speech APIs                                   | LIVE header                                  |
+| `listening`    | Actively listening for triggers                                     | LIVE LISTENING panel                         |
+| `detecting`    | Interim speech is arriving                                          | Current Detection badge                      |
+| `matched`      | A keyword just matched (MATCH DETECTED) or is awaiting confirmation | Current Detection panel (flash)              |
+| `triggering`   | The matched cue is playing                                          | Current Detection / Playback panels          |
+| `cooldown`     | At least one cue is still cooling down                              | Current Detection badge, Armed Triggers chip |
+| `paused`       | Preflight approved but listening stopped                            | LIVE header                                  |
+| `error`        | Microphone/speech/playback failure                                  | Error banner, System Status                  |
+
+`LiveSessionService.triggerState` (a computed signal) derives this from existing signals
+(`isListening`, `hasPendingConfirmations`, `nowPlaying`, a short-lived `detectionActive` window, and
+a `cooldownActive` map) — no extra timers, it rides the session's existing 500ms clock tick.
+
+### Confidence and cooldown
+
+- Threshold is per-cue (`Cue.confidenceThreshold`, editable in CUES), so different triggers can
+  require different certainty before firing automatically.
+- `LiveSessionService.cooldownRemainingMs(cueId)` exposes the live countdown (in ms) used by the
+  ARMED TRIGGERS chip; it mirrors the cooldown window `CueEngineService` already enforces
+  internally, it does not add a second cooldown mechanism.
+
+### Adding a new trigger
+
+Add or edit a cue in **CUES**: give it a name, one or more keyword variations (`triggers`), an audio
+file, a mode (`automatic` / `confirm` / `manual`), a confidence threshold and a cooldown. No code
+changes are required — the Trigger Engine reads the live cue list on every transcript.
+
+### Changing the speech recognition provider
+
+Swap the implementation behind `SpeechRecognitionService` (it only needs to emit `TranscriptEvent`s
+on `transcript$` and expose `available`/`isRecognizing`/`start`/`stop`). Nothing downstream
+(`CueEngineService`, `TriggerEngineService`, `LiveSessionService`) depends on the Web Speech API
+directly.
+
+### Extending matching later
+
+The `Keyword`/`Match` vocabulary is intentionally minimal today (exact word-boundary matching per
+keyword). It is designed so fuzzy matching, stemming or semantic/NLP matching can be added inside
+`CueEngineService`/`TriggerEngineService` later without changing the `Cue` storage model or the LIVE
+UI contract (`DetectionResult`).
+
 ## Environment
 
 Copy `.env.example` only when future integrations require configuration. No API keys or external AI services are used by the MVP.
