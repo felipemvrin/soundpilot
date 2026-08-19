@@ -2,9 +2,11 @@ import { createEnvironmentInjector, runInInjectionContext, signal } from '@angul
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Cue } from '../models/cue.model';
+import { DEFAULT_SETTINGS } from '../models/settings.model';
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { PREFLIGHT_API_TIMEOUT_MS, PreflightService } from './preflight.service';
 import { TextNormalizerService } from './text-normalizer.service';
+import { SettingsService } from './settings.service';
 
 const cue = (overrides: Partial<Cue> = {}): Cue => ({
   id: 'cue-1',
@@ -33,7 +35,14 @@ const devices = (inputs = 1, outputs = 1): MediaDeviceInfo[] =>
     })),
   ] as MediaDeviceInfo[];
 
-const createService = (speechAvailable = true) => {
+const createService = (
+  speechAvailable = true,
+  settingsOverride?: Partial<(typeof DEFAULT_SETTINGS)['audio']>,
+) => {
+  const audioSettings = settingsOverride
+    ? { ...DEFAULT_SETTINGS.audio, ...settingsOverride }
+    : DEFAULT_SETTINGS.audio;
+  const settingsValue = { ...DEFAULT_SETTINGS, audio: audioSettings };
   const injector = createEnvironmentInjector([
     {
       provide: SpeechRecognitionService,
@@ -42,6 +51,10 @@ const createService = (speechAvailable = true) => {
     {
       provide: TextNormalizerService,
       useValue: { normalize: (value: string) => value.trim().toLowerCase() },
+    },
+    {
+      provide: SettingsService,
+      useValue: { settings: signal(settingsValue) },
     },
   ]);
   return {
@@ -54,6 +67,7 @@ const setBrowserState = (
   mediaDevices: MediaDeviceInfo[] | undefined,
   permission: PermissionState = 'granted',
 ) => {
+  vi.stubGlobal('AudioContext', class {});
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value:
@@ -268,5 +282,87 @@ describe('PreflightService', () => {
     expect(fetchMock.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
     injector.destroy();
     vi.useRealTimers();
+  });
+});
+
+describe('PreflightService – selected device checks', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('fails the microphone check when the configured input device is not in the device list', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService(true, {
+      inputDevice: { id: 'missing-device', label: 'Ghost Mic' },
+    });
+    const report = await service.run([cue()]);
+
+    const mic = report.checks.find((check) => check.id === 'microphone');
+    expect(mic?.status).toBe('fail');
+    expect(mic?.message).toContain('Ghost Mic');
+    injector.destroy();
+  });
+
+  it('fails the output check when the configured output device is not in the device list', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService(true, {
+      outputDevice: { id: 'missing-output', label: 'Ghost Speaker' },
+    });
+    const report = await service.run([cue()]);
+
+    const output = report.checks.find((check) => check.id === 'output');
+    expect(output?.status).toBe('fail');
+    expect(output?.message).toContain('Ghost Speaker');
+    injector.destroy();
+  });
+});
+
+describe('PreflightService – audio configuration check', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('passes with the default supported audio configuration', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService();
+    const report = await service.run([cue()]);
+
+    const audioConfig = report.checks.find((check) => check.id === 'audio-configuration');
+    expect(audioConfig?.status).toBe('pass');
+    injector.destroy();
+  });
+
+  it('fails when the sample rate is not supported', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService(true, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sampleRate: 22050 as any,
+    });
+    const report = await service.run([cue()]);
+
+    const audioConfig = report.checks.find((check) => check.id === 'audio-configuration');
+    expect(audioConfig?.status).toBe('fail');
+    expect(audioConfig?.details).toContain('Unsupported sample rate.');
+    injector.destroy();
+  });
+});
+
+describe('PreflightService – engine startup check', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('passes engine check when browser capabilities are present and permission is granted', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService();
+    const report = await service.run([cue()]);
+
+    const engine = report.checks.find((check) => check.id === 'engine');
+    expect(engine?.status).toBe('pass');
+    injector.destroy();
+  });
+
+  it('fails engine check when microphone permission is denied', async () => {
+    setBrowserState(devices(), 'denied');
+    const { service, injector } = createService();
+    const report = await service.run([cue()]);
+
+    const engine = report.checks.find((check) => check.id === 'engine');
+    expect(engine?.status).toBe('fail');
+    injector.destroy();
   });
 });
