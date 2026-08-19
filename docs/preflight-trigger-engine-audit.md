@@ -138,7 +138,7 @@ fallback opt-in despues de medir falsos positivos y falsos negativos.
 
 ## Validacion posterior al refactor
 
-- `npm test`: 96 tests passed en 13 archivos.
+- `npm test`: 100 tests passed en 13 archivos.
 - `npm run lint`: passed.
 - `npm run build`: passed, incluyendo compilacion y type checking.
 
@@ -147,3 +147,59 @@ Settings/LIVE. No son introducidos por este cambio y no afectan la compilacion.
 
 El branch queda preparado para continuar con la implementación del Audio Engine, pero no para
 declarar producción de radio hasta completar las pruebas de hardware/browser indicadas en P0.
+
+## Unidad: speech largo y triggers sin audio
+
+### Problemas reproducidos
+
+- Web Speech API entregaba una colección acumulada, pero el adaptador procesaba únicamente
+  `results[resultIndex]`. En una secuencia con `Hola` final y `mi esposa` interim, LIVE recibía
+  solo `mi esposa`.
+- El reinicio automático del reconocimiento descartaba el contexto visual anterior.
+- Un trigger válido podía llegar al reproductor, pero `HTMLAudioElement.play()` podía ser rechazado
+  por políticas de autoplay, permisos, archivo inválido o dispositivo de salida. El error quedaba
+  reducido a un `error` genérico.
+
+### Correcciones aplicadas
+
+- Se reconstruyen todos los resultados disponibles del evento.
+- `TranscriptEvent.text` conserva el texto acumulado para LIVE y `segmentText` identifica el
+  fragmento nuevo para matching incremental.
+- El texto final se conserva cuando el proveedor reinicia automáticamente y se limpia al detener
+  manualmente la escucha.
+- `AudioPlaybackEvent.error` expone el nombre/mensaje real del rechazo de reproducción.
+
+### Validación de esta unidad
+
+- 7 tests de lifecycle y transcript acumulado.
+- 6 tests de Audio Player, incluido rechazo `NotAllowedError`.
+- 18 tests de LiveSession, incluido trigger automático hasta playback.
+- Tests enfocados: 31 passed.
+
+## Unidad: audio exclusivo y fades de transición
+
+### Comportamiento implementado
+
+- Solo existe un audio activo a la vez.
+- Un nuevo trigger inicia un fade-out rápido del audio actual hasta volumen `0` antes de
+  activar el nuevo cue.
+- El fade-in y fade-out respetan `Settings.playback.fadeInMs` y `fadeOutMs`.
+- El botón `Stop` usa el mismo fade-out y pausa el audio únicamente al terminar la transición.
+- Las transiciones anteriores se cancelan si llega un nuevo trigger o una nueva orden de stop.
+- El estado del audio anterior no puede limpiar accidentalmente el `nowPlaying` del nuevo cue.
+
+### Validación
+
+- AudioPlayerService: 8 tests passed.
+- Suite completa: 102 tests passed en 13 archivos.
+- `npm run lint`: passed.
+- `npm run build`: pendiente de ejecución posterior a esta unidad.
+
+## Unidad: ventana visible de Live transcript
+
+- LIVE conserva el transcript acumulado para reconocimiento y matching, pero la caja visual limita
+  la representación a las 24 palabras más recientes.
+- Las palabras antiguas se eliminan progresivamente de la vista y se añade `...` como indicador de
+  contexto anterior.
+- Esta limpieza no altera `TranscriptEvent.text`, `segmentText` ni el flujo del Trigger Engine.
+- La UI queda cubierta por un test con 45 palabras.

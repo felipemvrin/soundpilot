@@ -13,7 +13,9 @@ export class CueEngineService {
   readonly cueDetected$ = this.cueDetectedSubject.asObservable();
 
   processTranscript(transcript: TranscriptEvent, cues: readonly Cue[]): CueEvent[] {
-    const normalizedTranscript = this.normalizer.normalize(transcript.text);
+    const normalizedTranscript = this.normalizer.normalize(
+      transcript.segmentText ?? transcript.text,
+    );
     if (!normalizedTranscript) {
       return [];
     }

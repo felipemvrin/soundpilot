@@ -75,6 +75,21 @@ describe('SpeechRecognitionService lifecycle', () => {
     expect(instances[1]?.start).toHaveBeenCalledOnce();
   });
 
+  it('keeps accumulated transcript text across an automatic restart', async () => {
+    const { instances } = createRecognitionHarness();
+    const service = new SpeechRecognitionService();
+    const transcripts: string[] = [];
+    service.transcript$.subscribe((event) => transcripts.push(event.text));
+
+    service.start();
+    instances[0]?.onresult?.(resultEvent('Primera frase', true));
+    instances[0]?.onend?.();
+    await Promise.resolve();
+    instances[1]?.onresult?.(resultEvent('segunda frase', true));
+
+    expect(transcripts.at(-1)).toBe('Primera frase segunda frase');
+  });
+
   it('does not restart after a permission error', async () => {
     const { instances } = createRecognitionHarness();
     const service = new SpeechRecognitionService();
@@ -112,5 +127,23 @@ describe('SpeechRecognitionService lifecycle', () => {
     instances[0]?.onresult?.(resultEvent('esposa', true));
 
     expect(transcripts).toEqual(['esposa']);
+  });
+
+  it('publishes the accumulated final and interim results from one recognition event', () => {
+    const { instances } = createRecognitionHarness();
+    const service = new SpeechRecognitionService();
+    const transcripts: string[] = [];
+    service.transcript$.subscribe((event) => transcripts.push(event.text));
+
+    service.start();
+    instances[0]?.onresult?.({
+      resultIndex: 1,
+      results: [
+        { isFinal: true, 0: { transcript: 'Hola', confidence: 0.9 } },
+        { isFinal: false, 0: { transcript: ' mi esposa', confidence: 0.8 } },
+      ],
+    });
+
+    expect(transcripts).toEqual(['Hola mi esposa']);
   });
 });

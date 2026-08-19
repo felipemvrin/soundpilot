@@ -19,6 +19,7 @@ const cue: Cue = {
 };
 
 describe('AudioPlayerService', () => {
+  let playResult!: () => Promise<void>;
   const created: Array<{
     volume: number;
     currentTime: number;
@@ -30,12 +31,13 @@ describe('AudioPlayerService', () => {
 
   beforeEach(() => {
     created.length = 0;
+    playResult = () => Promise.resolve();
     vi.stubGlobal(
       'Audio',
       class {
         volume = 1;
         currentTime = 0;
-        play = vi.fn().mockResolvedValue(undefined);
+        play = vi.fn().mockImplementation(() => playResult());
         pause = vi.fn();
         addEventListener = vi.fn();
         setSinkId = vi.fn().mockResolvedValue(undefined);
@@ -63,6 +65,19 @@ describe('AudioPlayerService', () => {
     expect(events).toEqual(['error']);
   });
 
+  it('reports the browser playback rejection reason', async () => {
+    const service = new AudioPlayerService();
+    const events: string[] = [];
+    service.playback$.subscribe((event) => {
+      if (event.error) events.push(event.error);
+    });
+    const rejection = new DOMException('Playback was blocked', 'NotAllowedError');
+    playResult = () => Promise.reject(rejection);
+
+    await expect(service.play(cue)).resolves.toBe('error');
+    expect(events).toEqual(['NotAllowedError']);
+  });
+
   it('updates active playback volume when master volume changes', async () => {
     const service = new AudioPlayerService();
     await expect(service.play(cue)).resolves.toBe('played');
@@ -70,14 +85,67 @@ describe('AudioPlayerService', () => {
     expect(created[0]?.volume).toBeCloseTo(0.1);
   });
 
-  it('updates all active players when master volume changes', async () => {
+  it('keeps only the newest audio active when a second cue starts', async () => {
     const service = new AudioPlayerService();
     const secondCue = { ...cue, id: 'cue-2', audioFile: 'sound-2.mp3', volume: 0.8 };
     await expect(service.play(cue)).resolves.toBe('played');
     await expect(service.play(secondCue)).resolves.toBe('played');
-    service.setMasterVolume(0.25);
-    expect(created[0]?.volume).toBeCloseTo(0.125);
-    expect(created[1]?.volume).toBeCloseTo(0.2);
+    expect(created).toHaveLength(2);
+    expect(created[0]?.volume).toBe(0);
+    expect(created[0]?.pause).toHaveBeenCalled();
+    expect(created[1]?.volume).toBeCloseTo(0.8);
+    expect(service.nowPlaying()?.cueId).toBe('cue-2');
+  });
+
+  it('fades the current audio to zero before starting the next cue', async () => {
+    const settings = signal({
+      ...DEFAULT_SETTINGS,
+      playback: { ...DEFAULT_SETTINGS.playback, fadeOutMs: 30 },
+    });
+    const service = new AudioPlayerService({ settings } as SettingsService);
+    await expect(service.play(cue)).resolves.toBe('played');
+    const firstPlayer = created[0];
+    const secondCue = { ...cue, id: 'cue-2', audioFile: 'sound-2.mp3' };
+    const nextPlay = service.play(secondCue);
+
+    await expect(nextPlay).resolves.toBe('played');
+    expect(firstPlayer?.volume).toBe(0);
+  });
+
+  it('fades out instead of stopping abruptly', async () => {
+    const settings = signal({
+      ...DEFAULT_SETTINGS,
+      playback: { ...DEFAULT_SETTINGS.playback, fadeOutMs: 30 },
+    });
+    const service = new AudioPlayerService({ settings } as SettingsService);
+    await expect(service.play(cue)).resolves.toBe('played');
+    const player = created[0];
+
+    service.stop(cue.id);
+    expect(player?.pause).not.toHaveBeenCalled();
+    expect(player?.volume).toBeGreaterThan(0);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(player?.volume).toBe(0);
+    expect(player?.pause).toHaveBeenCalled();
+  });
+
+  it('stops all active cues when stopAll is called', async () => {
+    const settings = signal({
+      ...DEFAULT_SETTINGS,
+      playback: { ...DEFAULT_SETTINGS.playback, fadeOutMs: 0 },
+    });
+    const service = new AudioPlayerService({ settings } as SettingsService);
+    const events: string[] = [];
+    service.playback$.subscribe((event) => events.push(event.type));
+    await service.play(cue);
+    events.length = 0;
+
+    service.stopAll();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(events).toEqual(['stopped']);
+    expect(service.nowPlaying()).toBeUndefined();
+    expect(created[0]?.pause).toHaveBeenCalled();
   });
 
   it('applies the selected output device when the browser supports sink selection', async () => {

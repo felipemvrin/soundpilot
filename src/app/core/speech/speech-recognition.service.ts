@@ -39,6 +39,8 @@ export class SpeechRecognitionService {
   private readonly MAX_RESTART_ATTEMPTS = 5;
   private lastFinalTranscript?: string;
   private lastFinalAt = 0;
+  private resultTexts: string[] = [];
+  private accumulatedTranscript = '';
 
   readonly transcript$ = this.transcriptSubject.asObservable();
 
@@ -46,6 +48,7 @@ export class SpeechRecognitionService {
     const Recognition = this.getConstructor();
     if (!Recognition || this.isRecognizing()) return;
     this.shouldRestart = true;
+    this.resultTexts = [];
     this.recognition = new Recognition();
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
@@ -55,6 +58,13 @@ export class SpeechRecognitionService {
       this.handleResult(event);
     };
     this.recognition.onend = () => {
+      const currentText = this.resultTexts.filter(Boolean).join(' ').trim();
+      if (currentText) {
+        this.accumulatedTranscript = [this.accumulatedTranscript, currentText]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+      }
       this.isRecognizing.set(false);
       if (this.shouldRestart && this.restartAttempts < this.MAX_RESTART_ATTEMPTS) {
         this.restartAttempts++;
@@ -81,15 +91,25 @@ export class SpeechRecognitionService {
     this.restartAttempts = 0;
     this.recognition?.stop();
     this.recognition = undefined;
+    this.resultTexts = [];
+    this.accumulatedTranscript = '';
     this.isRecognizing.set(false);
   }
 
   private handleResult(event: RecognitionEventLike): void {
-    const result = event.results[event.resultIndex];
-    const alternative = result?.[0];
-    if (!alternative || !result) return;
-    const text = alternative.transcript.trim();
-    if (result.isFinal) {
+    const changedResult = event.results[event.resultIndex];
+    const alternative = changedResult?.[0];
+    if (!alternative || !changedResult) return;
+
+    for (let index = 0; index < event.results.length; index += 1) {
+      const result = event.results[index];
+      const item = result?.[0];
+      if (item) this.resultTexts[index] = item.transcript.trim();
+    }
+    const currentText = this.resultTexts.filter(Boolean).join(' ').trim();
+    const text = [this.accumulatedTranscript, currentText].filter(Boolean).join(' ').trim();
+    const segmentText = alternative.transcript.trim();
+    if (changedResult.isFinal) {
       const now = Date.now();
       if (text === this.lastFinalTranscript && now - this.lastFinalAt < 1_000) return;
       this.lastFinalTranscript = text;
@@ -97,9 +117,10 @@ export class SpeechRecognitionService {
     }
     this.transcriptSubject.next({
       text,
+      segmentText,
       confidence: alternative.confidence,
       timestamp: Date.now(),
-      isFinal: result.isFinal,
+      isFinal: changedResult.isFinal,
     });
   }
 
