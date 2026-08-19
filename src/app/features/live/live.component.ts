@@ -1,11 +1,12 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Cue } from '../../core/models/cue.model';
 import { PendingConfirmation, PreflightReport } from '../../core/models/session.model';
 import { TriggerState } from '../../core/models/trigger.model';
 import { AudioPlayerService } from '../../core/audio/audio-player.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
 import { PreflightService } from '../../core/services/preflight.service';
 import { TranscriptHighlighterService } from '../../core/services/transcript-highlighter.service';
@@ -63,6 +64,7 @@ export class LiveComponent {
   readonly session = inject(LiveSessionService);
   private readonly preflight = inject(PreflightService);
   private readonly player = inject(AudioPlayerService);
+  private readonly settings = inject(SettingsService);
   private readonly highlighter = inject(TranscriptHighlighterService);
 
   readonly report = signal<PreflightReport | undefined>(undefined);
@@ -70,9 +72,27 @@ export class LiveComponent {
   readonly preflightProgress = signal<string | undefined>(undefined);
   readonly outputTestRunning = signal(false);
   private readonly checkedCueState = signal<string | undefined>(undefined);
-  readonly preflightOutdated = computed(
-    () => this.report() !== undefined && this.checkedCueState() !== this.cueState(),
+  private readonly checkedSystemState = signal<string | undefined>(undefined);
+  private readonly systemState = computed(() =>
+    JSON.stringify({
+      settings: this.settings.settings(),
+      devices: this.settings.audioDevices(),
+    }),
   );
+  readonly preflightOutdated = computed(
+    () =>
+      this.report() !== undefined &&
+      (this.checkedCueState() !== this.cueState() ||
+        this.checkedSystemState() !== this.systemState()),
+  );
+
+  constructor() {
+    effect(() => {
+      if (this.report() && this.checkedSystemState() && this.preflightOutdated()) {
+        this.session.invalidatePreflight();
+      }
+    });
+  }
 
   readonly triggerStateLabel = computed(() => TRIGGER_STATE_LABEL[this.session.triggerState()]);
   readonly triggerStateIcon = computed(() => TRIGGER_STATE_ICON[this.session.triggerState()]);
@@ -156,6 +176,7 @@ export class LiveComponent {
       );
       this.report.set(report);
       this.checkedCueState.set(this.cueState());
+      this.checkedSystemState.set(this.systemState());
       this.session.recordPreflight(report.status);
     } finally {
       this.preflightRunning.set(false);

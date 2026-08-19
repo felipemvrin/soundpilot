@@ -3,9 +3,10 @@ import { Subject } from 'rxjs';
 
 import { AudioPlaybackEvent, Cue, NowPlaying } from '../models/cue.model';
 import { SettingsService } from '../services/settings.service';
+import { AudioEnginePort } from './audio-engine.port';
 
 @Injectable({ providedIn: 'root' })
-export class AudioPlayerService {
+export class AudioPlayerService implements AudioEnginePort {
   private readonly players = new Map<string, HTMLAudioElement>();
   private readonly cueVolumes = new Map<string, number>();
   private readonly playbackSubject = new Subject<AudioPlaybackEvent>();

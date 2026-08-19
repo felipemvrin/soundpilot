@@ -8,6 +8,7 @@ import { MicrophoneService } from '../../core/audio/microphone.service';
 import { Cue, TranscriptEvent } from '../../core/models/cue.model';
 import { CueRepository } from '../../core/services/cue-repository.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { SpeechRecognitionService } from '../../core/speech/speech-recognition.service';
 import { LiveComponent } from './live.component';
 
@@ -156,5 +157,26 @@ describe('LiveComponent', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
     fixture.detectChanges();
     expect(confirmSpy).toHaveBeenCalled();
+  });
+
+  it('invalidates an approved preflight when Settings changes', () => {
+    const { fixture, component, session } = setup();
+    const settings = TestBed.inject(SettingsService);
+    const componentState = component as unknown as {
+      checkedCueState: { set(value: string): void };
+      checkedSystemState: { set(value: string): void };
+      systemState: () => string;
+    };
+    component.report.set({ checks: [], status: 'ready', timestamp: Date.now() });
+    componentState.checkedCueState.set(JSON.stringify(session.cues()));
+    componentState.checkedSystemState.set(componentState.systemState());
+    session.recordPreflight('ready');
+    fixture.detectChanges();
+
+    settings.updateAudioSettings({ sampleRate: 44100 });
+    fixture.detectChanges();
+
+    expect(component.preflightOutdated()).toBe(true);
+    expect(session.preflightApproved()).toBe(false);
   });
 });
