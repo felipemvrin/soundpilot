@@ -129,6 +129,25 @@ describe('AudioPlayerService', () => {
     expect(player?.pause).toHaveBeenCalled();
   });
 
+  it('stops all active cues when stopAll is called', async () => {
+    const settings = signal({
+      ...DEFAULT_SETTINGS,
+      playback: { ...DEFAULT_SETTINGS.playback, fadeOutMs: 0 },
+    });
+    const service = new AudioPlayerService({ settings } as SettingsService);
+    const events: string[] = [];
+    service.playback$.subscribe((event) => events.push(event.type));
+    await service.play(cue);
+    events.length = 0;
+
+    service.stopAll();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(events).toEqual(['stopped']);
+    expect(service.nowPlaying()).toBeUndefined();
+    expect(created[0]?.pause).toHaveBeenCalled();
+  });
+
   it('applies the selected output device when the browser supports sink selection', async () => {
     const service = new AudioPlayerService({
       settings: signal({

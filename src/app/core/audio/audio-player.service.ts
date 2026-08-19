@@ -83,8 +83,16 @@ export class AudioPlayerService implements AudioEnginePort {
   }
 
   stopAll(): void {
-    const cueIds = [...this.players.keys()];
-    cueIds.forEach((cueId) => this.stop(cueId));
+    const transitionId = ++this.transitionId;
+    this.cancelFades();
+    [...this.players.entries()].forEach(([cueId, player]) => {
+      void this.fadeVolume(player, 0, this.fadeOutDurationMs(), transitionId).then(() => {
+        if (transitionId !== this.transitionId) return;
+        this.removePlayer(cueId, player);
+        this.clearNowPlaying(cueId);
+        this.emit(cueId, 'stopped');
+      });
+    });
   }
 
   setMasterVolume(volume: number): void {
