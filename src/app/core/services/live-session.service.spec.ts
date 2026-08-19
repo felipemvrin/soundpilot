@@ -10,6 +10,7 @@ import { CueEngineService } from './cue-engine.service';
 import { CueRepository } from './cue-repository.service';
 import { LiveSessionService } from './live-session.service';
 import { TextNormalizerService } from './text-normalizer.service';
+import { TriggerEngineService } from './trigger-engine.service';
 
 const cue: Cue = {
   id: 'confirm-cue',
@@ -56,7 +57,13 @@ const createSession = (
     { provide: AudioPlayerService, useValue: player },
     {
       provide: MicrophoneService,
-      useValue: { isListening: signal(false), level: signal(0), start: vi.fn(), stop: vi.fn() },
+      useValue: {
+        isListening: signal(false),
+        level: signal(0),
+        bands: signal([]),
+        start: vi.fn(),
+        stop: vi.fn(),
+      },
     },
     {
       provide: SpeechRecognitionService,
@@ -77,6 +84,7 @@ const createSession = (
       useValue: { normalize: (value: string) => value.trim().toLowerCase() },
     },
     { provide: CueRepository, useValue: { load: vi.fn().mockReturnValue([cue]), save: vi.fn() } },
+    { provide: TriggerEngineService, useValue: new TriggerEngineService() },
   ]);
   const session = runInInjectionContext(injector, () => new LiveSessionService());
   return { session, injector, player };
@@ -191,6 +199,50 @@ describe('LiveSessionService confidence routing', () => {
     const { session, injector, player } = createSession('played', [automaticEvent(0)]);
     session.processTranscript({ ...transcript, confidence: 0 });
     expect(player.play).toHaveBeenCalledWith(automatic);
+    session.dispose();
+    injector.destroy();
+  });
+});
+
+describe('LiveSessionService trigger engine state', () => {
+  const automatic: Cue = { ...cue, id: 'auto', mode: 'automatic', confidenceThreshold: 0.9 };
+  const automaticEvent = (confidence: number): CueEvent => ({
+    cue: automatic,
+    trigger: automatic.triggers[0],
+    action: 'play',
+    transcript: { ...transcript, confidence },
+    timestamp: transcript.timestamp,
+  });
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('starts idle before any session activity', () => {
+    const { session, injector } = createSession();
+    expect(session.triggerState()).toBe('idle');
+    session.dispose();
+    injector.destroy();
+  });
+
+  it('moves to matched right after a keyword match', () => {
+    const { session, injector } = createSession('played', [automaticEvent(0.95)]);
+    session.processTranscript({ ...transcript, confidence: 0.95 });
+    expect(session.triggerState()).toBe('matched');
+    session.dispose();
+    injector.destroy();
+  });
+
+  it('starts a per-cue cooldown as soon as the cue is matched', () => {
+    const { session, injector } = createSession('played', [automaticEvent(0.95)]);
+    session.processTranscript({ ...transcript, confidence: 0.95 });
+    expect(session.cooldownRemainingMs(automatic.id)).toBeGreaterThan(0);
+    session.dispose();
+    injector.destroy();
+  });
+
+  it('reports zero cooldown for cues that never fired', () => {
+    const { session, injector } = createSession();
+    expect(session.cooldownRemainingMs('never-fired')).toBe(0);
     session.dispose();
     injector.destroy();
   });

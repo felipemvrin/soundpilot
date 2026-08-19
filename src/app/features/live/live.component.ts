@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 
 import { Cue } from '../../core/models/cue.model';
 import { PendingConfirmation, PreflightReport } from '../../core/models/session.model';
+import { TriggerState } from '../../core/models/trigger.model';
 import { AudioPlayerService } from '../../core/audio/audio-player.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
 import { PreflightService } from '../../core/services/preflight.service';
@@ -11,8 +12,37 @@ import { TranscriptHighlighterService } from '../../core/services/transcript-hig
 import { ConfidenceBadgeComponent } from '../../shared/components/confidence-badge/confidence-badge.component';
 import { CueStatusChipComponent } from '../../shared/components/cue-status-chip/cue-status-chip.component';
 import { EventLogComponent } from '../../shared/components/event-log/event-log.component';
+import { LiveListeningIndicatorComponent } from '../../shared/components/live-listening-indicator/live-listening-indicator.component';
+import {
+  SystemStatusItem,
+  SystemStatusPanelComponent,
+} from '../../shared/components/system-status-panel/system-status-panel.component';
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
+
+const TRIGGER_STATE_LABEL: Record<TriggerState, string> = {
+  idle: 'IDLE',
+  initializing: 'INITIALIZING',
+  listening: 'LISTENING',
+  detecting: 'DETECTING',
+  matched: 'MATCH DETECTED',
+  triggering: 'TRIGGERING',
+  cooldown: 'COOLDOWN',
+  paused: 'PAUSED',
+  error: 'ERROR',
+};
+
+const TRIGGER_STATE_ICON: Record<TriggerState, string> = {
+  idle: '○',
+  initializing: '◐',
+  listening: '●',
+  detecting: '◉',
+  matched: '⚡',
+  triggering: '▶',
+  cooldown: '◷',
+  paused: '❚❚',
+  error: '⚠',
+};
 
 @Component({
   selector: 'app-live',
@@ -22,6 +52,8 @@ const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
     ConfidenceBadgeComponent,
     CueStatusChipComponent,
     EventLogComponent,
+    LiveListeningIndicatorComponent,
+    SystemStatusPanelComponent,
   ],
   templateUrl: './live.component.html',
   styleUrl: './live.component.scss',
@@ -41,6 +73,59 @@ export class LiveComponent {
   readonly preflightOutdated = computed(
     () => this.report() !== undefined && this.checkedCueState() !== this.cueState(),
   );
+
+  readonly triggerStateLabel = computed(() => TRIGGER_STATE_LABEL[this.session.triggerState()]);
+  readonly triggerStateIcon = computed(() => TRIGGER_STATE_ICON[this.session.triggerState()]);
+  /** Whether the state dot should pulse (engine actively working vs. holding steady). */
+  readonly triggerStatePulsing = computed(() =>
+    (
+      ['listening', 'detecting', 'matched', 'triggering', 'initializing'] as TriggerState[]
+    ).includes(this.session.triggerState()),
+  );
+
+  readonly systemStatusItems = computed<SystemStatusItem[]>(() => {
+    const micState: SystemStatusItem['state'] = this.session.error()?.title.includes('Microphone')
+      ? 'error'
+      : this.session.isListening()
+        ? 'ok'
+        : 'warn';
+    const speechState: SystemStatusItem['state'] = !this.session.speechAvailable()
+      ? 'error'
+      : this.session.isRecognizing()
+        ? 'ok'
+        : 'warn';
+    const triggerEngineState: SystemStatusItem['state'] =
+      this.session.triggerState() === 'error'
+        ? 'error'
+        : this.session.isListening()
+          ? 'ok'
+          : 'warn';
+    const cueEngineState: SystemStatusItem['state'] = this.session.enabledCues().length
+      ? 'ok'
+      : 'warn';
+    return [
+      { label: 'Audio Input', state: micState, detail: this.session.isListening() ? 'OK' : 'IDLE' },
+      {
+        label: 'Speech Engine',
+        state: speechState,
+        detail: !this.session.speechAvailable()
+          ? 'UNAVAILABLE'
+          : this.session.isRecognizing()
+            ? 'READY'
+            : 'IDLE',
+      },
+      {
+        label: 'Trigger Engine',
+        state: triggerEngineState,
+        detail: this.triggerStateLabel(),
+      },
+      {
+        label: 'Cue Engine',
+        state: cueEngineState,
+        detail: this.session.enabledCues().length ? 'READY' : 'NO ARMED CUES',
+      },
+    ];
+  });
 
   readonly transcriptSegments = computed(() => {
     const transcript = this.session.transcript();

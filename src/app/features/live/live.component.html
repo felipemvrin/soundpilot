@@ -45,6 +45,11 @@
     </div>
   </section>
 
+  <section class="panel status-panel" aria-label="System status">
+    <span class="eyebrow">System status</span>
+    <app-system-status-panel [items]="systemStatusItems()" />
+  </section>
+
   @if (session.error(); as error) {
     <section class="banner banner--error" role="alert">
       <div>
@@ -184,6 +189,22 @@
     </section>
   }
 
+  <section [class]="'panel listening state--' + session.triggerState()" aria-label="Live listening">
+    <app-live-listening-indicator
+      [active]="session.isListening()"
+      [level]="session.audioLevel()"
+      [bands]="session.audioBands()"
+      [label]="session.isListening() ? 'LIVE LISTENING' : 'MICROPHONE IDLE'"
+    />
+    <p class="listening-hint">
+      {{
+        session.isListening()
+          ? 'Listening for triggers…'
+          : 'Start listening to arm the Trigger Engine.'
+      }}
+    </p>
+  </section>
+
   <div class="grid">
     <section class="panel transcript" aria-label="Live transcript">
       <header class="panel-head">
@@ -201,11 +222,24 @@
       </p>
     </section>
 
-    <section class="panel detected" aria-label="Detected cue">
-      <span class="eyebrow">Cue detected</span>
+    <section
+      [class]="'panel detected state--' + session.triggerState()"
+      aria-label="Current detection"
+    >
+      <header class="panel-head">
+        <span class="eyebrow">Current detection</span>
+        <span
+          [class]="
+            'state state--' + session.triggerState() + (triggerStatePulsing() ? ' state--live' : '')
+          "
+          role="status"
+        >
+          <span aria-hidden="true">{{ triggerStateIcon() }}</span> {{ triggerStateLabel() }}
+        </span>
+      </header>
       @if (session.detection(); as detection) {
         <h2 class="cue-name">{{ detection.event.cue.name }}</h2>
-        <p class="trigger">Trigger: {{ detection.event.trigger.value }}</p>
+        <p class="trigger">Keyword: "{{ detection.event.trigger.value }}"</p>
         <app-confidence-badge [confidence]="detection.confidence" [level]="detection.level" />
       } @else {
         <p class="muted empty">No cue detected yet.</p>
@@ -250,9 +284,9 @@
     </section>
   </div>
 
-  <section class="panel cues-strip" aria-label="Active cues">
+  <section class="panel cues-strip" aria-label="Armed triggers">
     <header class="panel-head">
-      <span class="eyebrow">Active cues</span>
+      <span class="eyebrow">🎯 Armed triggers</span>
       <a class="btn btn--ghost" routerLink="/cues">+ Add cue</a>
     </header>
     <div class="chips">
@@ -260,17 +294,23 @@
         <app-cue-status-chip
           [cue]="cue"
           [status]="session.runtimeStatus(cue)"
+          [cooldownRemainingMs]="session.cooldownRemainingMs(cue.id)"
+          [lastFiredAt]="session.lastFiredAt(cue.id)"
           (fire)="playCue($event)"
         />
       } @empty {
-        <p class="muted">No cues configured. Create one in the CUES section.</p>
+        <p class="muted empty-triggers">
+          No triggers configured. Create your first trigger to let SoundPilot react automatically to
+          live speech.
+        </p>
+        <a class="btn btn--primary" routerLink="/cues">Create trigger</a>
       }
     </div>
   </section>
 
-  <section class="panel events" aria-label="Recent events">
+  <section class="panel events" aria-label="Recent activity">
     <header class="panel-head">
-      <span class="eyebrow">Recent events</span>
+      <span class="eyebrow">Recent activity</span>
       @if (session.lastPlayed(); as last) {
         <span class="last-played"
           >Last played: <strong>{{ last.cueName }}</strong>

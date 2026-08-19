@@ -227,8 +227,25 @@ label.field {
   color: var(--ok-soft);
 }
 
-.state--playing {
+.state--playing,
+.state--triggering {
   color: var(--accent);
+}
+
+.state--detecting {
+  color: var(--accent);
+}
+
+.state--matched {
+  color: var(--warn);
+}
+
+.state--cooldown {
+  color: var(--warn);
+}
+
+.state--initializing {
+  color: var(--muted);
 }
 
 .state--processing,
@@ -241,7 +258,8 @@ label.field {
   color: var(--danger);
 }
 
-.state--disabled {
+.state--disabled,
+.state--idle {
   color: #6c7a91;
 }
 

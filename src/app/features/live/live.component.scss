@@ -39,6 +39,41 @@
   margin-left: auto;
 }
 
+.status-panel {
+  padding: 0.55rem 1rem;
+}
+
+.listening {
+  align-items: center;
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.7rem 1rem;
+}
+
+.listening app-live-listening-indicator {
+  flex: 0 0 16rem;
+}
+
+.listening-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.listening.state--listening,
+.listening.state--detecting,
+.listening.state--matched,
+.listening.state--triggering {
+  border-color: var(--accent);
+}
+
+.listening.state--cooldown {
+  border-color: var(--warn);
+}
+
+.listening.state--error {
+  border-color: var(--danger);
+}
+
 .banner {
   align-items: flex-start;
   background: var(--surface);
@@ -183,6 +218,29 @@
 .detected {
   border-color: var(--line-strong);
   justify-content: center;
+  transition: border-color 0.2s ease;
+}
+
+.detected.state--matched {
+  animation: detected-flash 0.4s ease-out;
+  border-color: var(--warn);
+}
+
+.detected.state--triggering {
+  border-color: var(--accent);
+}
+
+.detected.state--cooldown {
+  border-color: var(--warn);
+}
+
+@keyframes detected-flash {
+  0% {
+    background: rgb(233 189 77 / 20%);
+  }
+  100% {
+    background: transparent;
+  }
 }
 
 .cue-name {
@@ -229,6 +287,11 @@
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 }
 
+.empty-triggers {
+  margin-bottom: 0.6rem;
+  max-width: 32rem;
+}
+
 .events {
   flex: 1 1 9rem;
   overflow: hidden;
@@ -248,12 +311,21 @@
 }
 
 .live.air .recog,
-.live.air .preflight-btn {
+.live.air .preflight-btn,
+.live.air .status-panel {
   display: none;
 }
 
 .live.air .events {
   flex: 1 1 7rem;
+}
+
+.live.air .cue-name {
+  color: var(--air);
+}
+
+.live.air .listening app-live-listening-indicator {
+  flex: 0 0 20rem;
 }
 
 @media (max-height: 820px) {
