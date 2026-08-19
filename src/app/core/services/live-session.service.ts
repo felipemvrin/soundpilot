@@ -15,6 +15,7 @@ import {
   CueDetection,
   OperationError,
   PendingConfirmation,
+  PreflightStatus,
   SessionEvent,
   SessionOutcome,
 } from '../models/session.model';
@@ -28,6 +29,7 @@ export const DEFAULT_CONFIDENCE_THRESHOLD = 0.9;
 export const MIN_CONFIDENCE = 0.7;
 const MAX_EVENTS = 40;
 const PLAYED_FLASH_MS = 2_500;
+const PREFLIGHT_AIR_MODE_ERROR_TITLE = 'Run preflight before entering air mode';
 
 export interface CueValidationErrors {
   name?: string;
@@ -80,6 +82,7 @@ export class LiveSessionService {
   readonly pendingConfirmations = signal<PendingConfirmation[]>([]);
   readonly now = signal(Date.now());
   readonly airMode = signal(false);
+  readonly preflightApproved = signal(false);
   readonly muted = signal(false);
   readonly masterVolume = signal(1);
   readonly error = signal<OperationError | undefined>(undefined);
@@ -162,8 +165,29 @@ export class LiveSessionService {
     this.error.set(undefined);
   }
 
+  recordPreflight(status: PreflightStatus): void {
+    const approved = status === 'ready' || status === 'ready-with-warnings';
+    this.preflightApproved.set(approved);
+    if (approved && this.error()?.title === PREFLIGHT_AIR_MODE_ERROR_TITLE) {
+      this.error.set(undefined);
+    }
+  }
+
   toggleAirMode(): void {
-    this.airMode.update((value) => !value);
+    if (this.airMode()) {
+      this.airMode.set(false);
+      return;
+    }
+    if (!this.preflightApproved()) {
+      this.error.set({
+        title: PREFLIGHT_AIR_MODE_ERROR_TITLE,
+        detail: 'Run preflight in LIVE and resolve any blocking checks before going on air.',
+        actionLabel: 'Open live',
+        actionRoute: '/live',
+      });
+      return;
+    }
+    this.airMode.set(true);
   }
 
   setMasterVolume(volume: number): void {
@@ -568,6 +592,7 @@ export class LiveSessionService {
 
   private persist(cues: Cue[]): void {
     this.cues.set(cues);
+    this.preflightApproved.set(false);
     this.repository.save(cues);
   }
 }

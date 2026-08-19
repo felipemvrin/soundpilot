@@ -37,16 +37,25 @@ export interface OperationError {
   actionRoute?: string;
 }
 
+export type PreflightCheckStatus = 'pass' | 'warning' | 'fail' | 'not-checked' | 'checking';
+export type PreflightSeverity = 'info' | 'warning' | 'error';
+export type PreflightStatus = 'ready' | 'ready-with-warnings' | 'attention-required';
+
 export interface PreflightCheck {
   id: string;
   label: string;
-  passed: boolean;
-  detail: string;
+  status: PreflightCheckStatus;
+  severity: PreflightSeverity;
+  message: string;
+  details?: string[];
+  actionLabel?: string;
+  actionRoute?: string;
+  actionId?: 'test-output';
 }
 
 export interface PreflightReport {
   checks: PreflightCheck[];
-  ready: boolean;
+  status: PreflightStatus;
   timestamp: number;
 }
 
