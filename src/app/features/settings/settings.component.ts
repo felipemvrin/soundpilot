@@ -1,15 +1,19 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { CommonModule } from '@angular/common';
 
 import { MicrophoneService } from '../../core/audio/microphone.service';
 import { SpeechRecognitionService } from '../../core/speech/speech-recognition.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { AudioLevelMeterComponent } from '../../shared/components/audio-level-meter/audio-level-meter.component';
-
-interface DeviceInfo {
-  id: string;
-  label: string;
-}
+import { AudioDevicesSectionComponent } from './audio-devices/audio-devices.component';
+import { AudioConfigSectionComponent } from './audio-config/audio-config.component';
+import { TriggerBehaviorSectionComponent } from './trigger-behavior/trigger-behavior.component';
+import { PlaybackConfigSectionComponent } from './playback-config/playback-config.component';
+import { SystemStatusSectionComponent } from './system-status/system-status.component';
+import { PermissionsSectionComponent } from './permissions/permissions.component';
+import { SafeActionsSectionComponent } from './safe-actions/safe-actions.component';
 
 const LANGUAGES = [
   { value: 'es-ES', label: 'Español (España)' },
@@ -19,9 +23,26 @@ const LANGUAGES = [
   { value: 'pt-BR', label: 'Português (Brasil)' },
 ];
 
+/**
+ * Main Settings component.
+ * Orchestrates all configuration sections: audio devices, audio config, triggers,
+ * playback, system status, permissions, and safe actions.
+ */
 @Component({
   selector: 'app-settings',
-  imports: [RouterLink, AudioLevelMeterComponent],
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterLink,
+    AudioLevelMeterComponent,
+    AudioDevicesSectionComponent,
+    AudioConfigSectionComponent,
+    TriggerBehaviorSectionComponent,
+    PlaybackConfigSectionComponent,
+    SystemStatusSectionComponent,
+    PermissionsSectionComponent,
+    SafeActionsSectionComponent,
+  ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
 })
@@ -29,50 +50,7 @@ export class SettingsComponent {
   readonly session = inject(LiveSessionService);
   readonly microphone = inject(MicrophoneService);
   readonly speech = inject(SpeechRecognitionService);
+  readonly settings$ = inject(SettingsService);
 
   readonly languages = LANGUAGES;
-  readonly inputs = signal<DeviceInfo[]>([]);
-  readonly outputs = signal<DeviceInfo[]>([]);
-  readonly devicesError = signal<string | undefined>(undefined);
-  readonly volumePercent = computed(() => Math.round(this.session.masterVolume() * 100));
-
-  constructor() {
-    void this.refreshDevices();
-  }
-
-  async refreshDevices(): Promise<void> {
-    if (!navigator.mediaDevices?.enumerateDevices) {
-      this.devicesError.set('This browser does not expose the device list.');
-      return;
-    }
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      this.inputs.set(this.map(devices, 'audioinput'));
-      this.outputs.set(this.map(devices, 'audiooutput'));
-      this.devicesError.set(undefined);
-    } catch {
-      this.devicesError.set('Device list unavailable. Grant microphone permission and retry.');
-    }
-  }
-
-  setLanguage(value: string): void {
-    this.speech.language.set(value);
-    if (this.speech.isRecognizing()) {
-      this.speech.stop();
-      this.speech.start();
-    }
-  }
-
-  setVolume(value: string): void {
-    this.session.setMasterVolume(Math.min(1, Math.max(0, Number(value) / 100)));
-  }
-
-  private map(devices: MediaDeviceInfo[], kind: MediaDeviceKind): DeviceInfo[] {
-    return devices
-      .filter((device) => device.kind === kind)
-      .map((device, index) => ({
-        id: device.deviceId || `${kind}-${index}`,
-        label: device.label || `${kind === 'audioinput' ? 'Input' : 'Output'} ${index + 1}`,
-      }));
-  }
 }

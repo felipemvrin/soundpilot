@@ -1,6 +1,9 @@
+import { signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Cue } from '../models/cue.model';
+import { DEFAULT_SETTINGS } from '../models/settings.model';
+import { SettingsService } from '../services/settings.service';
 import { AudioPlayerService } from './audio-player.service';
 
 const cue: Cue = {
@@ -22,6 +25,7 @@ describe('AudioPlayerService', () => {
     play: ReturnType<typeof vi.fn>;
     pause: ReturnType<typeof vi.fn>;
     addEventListener: ReturnType<typeof vi.fn>;
+    setSinkId: ReturnType<typeof vi.fn>;
   }> = [];
 
   beforeEach(() => {
@@ -34,6 +38,7 @@ describe('AudioPlayerService', () => {
         play = vi.fn().mockResolvedValue(undefined);
         pause = vi.fn();
         addEventListener = vi.fn();
+        setSinkId = vi.fn().mockResolvedValue(undefined);
 
         constructor() {
           created.push(this);
@@ -73,5 +78,21 @@ describe('AudioPlayerService', () => {
     service.setMasterVolume(0.25);
     expect(created[0]?.volume).toBeCloseTo(0.125);
     expect(created[1]?.volume).toBeCloseTo(0.2);
+  });
+
+  it('applies the selected output device when the browser supports sink selection', async () => {
+    const service = new AudioPlayerService({
+      settings: signal({
+        ...DEFAULT_SETTINGS,
+        audio: {
+          ...DEFAULT_SETTINGS.audio,
+          outputDevice: { id: 'speaker-1', label: 'Studio Monitor' },
+        },
+      }),
+    } as SettingsService);
+
+    await expect(service.play(cue)).resolves.toBe('played');
+
+    expect(created[0]?.setSinkId).toHaveBeenCalledWith('speaker-1');
   });
 });

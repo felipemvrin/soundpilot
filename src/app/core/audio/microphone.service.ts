@@ -1,4 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, Optional, signal } from '@angular/core';
+
+import { SettingsService } from '../services/settings.service';
 
 /** Number of frequency bands exposed for per-bar waveform visualizers (e.g. LIVE LISTENING). */
 const BAND_COUNT = 14;
@@ -14,9 +16,11 @@ export class MicrophoneService {
   private analyser?: AnalyserNode;
   private animationFrame?: number;
 
+  constructor(@Optional() private readonly settings: SettingsService | null = null) {}
+
   async start(): Promise<void> {
     if (this.isListening()) return;
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.stream = await this.getStream();
     this.audioContext = new AudioContext();
     await this.audioContext.resume();
     this.analyser = this.audioContext.createAnalyser();
@@ -50,6 +54,27 @@ export class MicrophoneService {
     this.bands.set(this.toBands(freqData));
 
     this.animationFrame = requestAnimationFrame(() => this.monitorLevel());
+  }
+
+  private async getStream(): Promise<MediaStream> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Audio input is not available in this browser.');
+    }
+
+    const deviceId = this.settings?.settings().audio.inputDevice?.id;
+    if (!deviceId) {
+      return navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: { exact: deviceId },
+        },
+      });
+    } catch {
+      return navigator.mediaDevices.getUserMedia({ audio: true });
+    }
   }
 
   private toBands(data: Uint8Array): number[] {
