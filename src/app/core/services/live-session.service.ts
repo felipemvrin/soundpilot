@@ -606,7 +606,7 @@ export class LiveSessionService {
       const confidence = this.confidenceOf(transcript);
       const threshold = event.cue.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
       if (confidence === undefined || confidence < threshold) continue;
-      this.engine.markTriggered?.(event.cue.id, transcript.timestamp);
+      this.engine.markTriggered(event.cue.id, transcript.timestamp);
       this.handleAcceptedDetection(event, confidence, pipelineStartedAt);
     }
   }

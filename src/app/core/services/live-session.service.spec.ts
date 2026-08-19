@@ -77,7 +77,7 @@ const createSession = (
     },
     {
       provide: CueEngineService,
-      useValue: { processTranscript: vi.fn().mockReturnValue(detected) },
+      useValue: { processTranscript: vi.fn().mockReturnValue(detected), markTriggered: vi.fn() },
     },
     {
       provide: TextNormalizerService,

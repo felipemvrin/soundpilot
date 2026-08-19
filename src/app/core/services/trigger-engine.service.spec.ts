@@ -155,6 +155,22 @@ describe('TriggerEngineService diagnostics', () => {
     expect(events).toHaveLength(0);
     subscription.unsubscribe();
   });
+
+  it('emits diagnostics when debug logging is enabled', () => {
+    const settingsStub = {
+      settings: () => ({ trigger: { debugLogging: true } }),
+    } as unknown as import('./settings.service').SettingsService;
+    const engine = new TriggerEngineService(settingsStub);
+    const events: unknown[] = [];
+    const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
+
+    const diagnostic = { stage: 'transcription-received' as const, timestamp: 1000 };
+    engine.log(diagnostic);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject(diagnostic);
+    subscription.unsubscribe();
+  });
 });
 
 describe('TriggerEngineService event contract', () => {
