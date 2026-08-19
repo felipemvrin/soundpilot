@@ -101,7 +101,7 @@ describe('CueEngineService', () => {
     expect(events[0]?.cue.id).toBe('specific');
   });
 
-  it('puts all matching candidates on cooldown, not just the winner', () => {
+  it('puts only the winning candidate on cooldown', () => {
     const service = engine();
     const short = cue({
       id: 'short',
@@ -121,9 +121,9 @@ describe('CueEngineService', () => {
       service.processTranscript(transcript('mi esposa', 1000), [short, specific]),
     ).toHaveLength(1);
 
-    // T=2 (within cooldown): short lost but should also be on cooldown
+    // T=2: the non-winning short cue remains eligible and wins this new phrase.
     expect(service.processTranscript(transcript('esposa', 2000), [short, specific])).toHaveLength(
-      0,
+      1,
     );
 
     // T=5 (after cooldown): both are free again

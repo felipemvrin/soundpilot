@@ -30,8 +30,7 @@ export class AudioPlayerService implements AudioEnginePort {
     }
     const transitionId = ++this.transitionId;
     this.cancelFades();
-    await this.fadeOutActivePlayers(transitionId);
-    if (transitionId !== this.transitionId) return 'error';
+    void this.fadeOutActivePlayers(transitionId);
 
     const player = new Audio(cue.audioFile);
     const targetVolume = this.clamp(cue.volume * this.masterVolume);
@@ -120,6 +119,7 @@ export class AudioPlayerService implements AudioEnginePort {
         await this.fadeVolume(player, 0, this.fadeOutDurationMs(), transitionId);
         if (transitionId !== this.transitionId) return;
         this.removePlayer(cueId, player);
+        if (this.players.has(cueId)) return;
         this.clearNowPlaying(cueId);
         this.emit(cueId, 'ended');
       }),
@@ -168,8 +168,10 @@ export class AudioPlayerService implements AudioEnginePort {
   private removePlayer(cueId: string, player: HTMLAudioElement): void {
     player.pause();
     player.currentTime = 0;
-    if (this.players.get(cueId) === player) this.players.delete(cueId);
-    this.cueVolumes.delete(cueId);
+    if (this.players.get(cueId) === player) {
+      this.players.delete(cueId);
+      this.cueVolumes.delete(cueId);
+    }
   }
 
   private fadeInDurationMs(): number {

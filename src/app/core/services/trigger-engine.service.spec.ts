@@ -144,6 +144,35 @@ describe('TriggerEngineService cooldown remaining', () => {
   });
 });
 
+describe('TriggerEngineService diagnostics', () => {
+  it('does not emit diagnostics when debug logging is disabled', () => {
+    const engine = new TriggerEngineService();
+    const events: unknown[] = [];
+    const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
+
+    engine.log({ stage: 'transcription-received', timestamp: 1000 });
+
+    expect(events).toHaveLength(0);
+    subscription.unsubscribe();
+  });
+
+  it('emits diagnostics when debug logging is enabled', () => {
+    const settingsStub = {
+      settings: () => ({ trigger: { debugLogging: true } }),
+    } as unknown as import('./settings.service').SettingsService;
+    const engine = new TriggerEngineService(settingsStub);
+    const events: unknown[] = [];
+    const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
+
+    const diagnostic = { stage: 'transcription-received' as const, timestamp: 1000 };
+    engine.log(diagnostic);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject(diagnostic);
+    subscription.unsubscribe();
+  });
+});
+
 describe('TriggerEngineService event contract', () => {
   it('emits a decision event for downstream audio consumers', () => {
     const engine = new TriggerEngineService();

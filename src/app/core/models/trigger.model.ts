@@ -60,4 +60,24 @@ export interface TriggerEvent {
   decision?: 'accepted' | 'rejected' | 'pending';
   reason?: string;
   source?: 'speech-recognition' | 'manual';
+  latencyMs?: number;
+}
+
+export type TriggerDiagnosticStage =
+  | 'input-received'
+  | 'transcription-received'
+  | 'keyword-matched'
+  | 'decision-accepted'
+  | 'decision-rejected'
+  | 'decision-pending'
+  | 'playback-completed';
+
+export interface TriggerDiagnosticEvent {
+  stage: TriggerDiagnosticStage;
+  timestamp: number;
+  latencyMs?: number;
+  cueId?: string;
+  keyword?: string;
+  reason?: string;
+  details?: Readonly<Record<string, string | number | boolean>>;
 }

@@ -77,7 +77,7 @@ const createSession = (
     },
     {
       provide: CueEngineService,
-      useValue: { processTranscript: vi.fn().mockReturnValue(detected) },
+      useValue: { processTranscript: vi.fn().mockReturnValue(detected), markTriggered: vi.fn() },
     },
     {
       provide: TextNormalizerService,
@@ -202,6 +202,26 @@ describe('LiveSessionService confidence routing', () => {
     session.dispose();
     injector.destroy();
   });
+
+  it('plays an automatic cue from an interim result above its threshold', () => {
+    const { session, injector, player } = createSession('played', [automaticEvent(0.95)]);
+
+    session.processTranscript({ ...transcript, isFinal: false, confidence: 0.95 });
+
+    expect(player.play).toHaveBeenCalledWith(automatic);
+    session.dispose();
+    injector.destroy();
+  });
+
+  it('does not play an automatic cue from low-confidence interim speech', () => {
+    const { session, injector, player } = createSession('played', [automaticEvent(0.65)]);
+
+    session.processTranscript({ ...transcript, isFinal: false, confidence: 0.65 });
+
+    expect(player.play).not.toHaveBeenCalled();
+    session.dispose();
+    injector.destroy();
+  });
 });
 
 describe('LiveSessionService trigger engine state', () => {
@@ -249,6 +269,15 @@ describe('LiveSessionService trigger engine state', () => {
 });
 
 describe('LiveSessionService cue configuration', () => {
+  it('treats a manual cue without audio as ready for detection', () => {
+    const { session, injector } = createSession();
+    const manualCue = { ...cue, mode: 'manual' as const, audioFile: '' };
+
+    expect(session.runtimeStatus(manualCue)).toBe('ready');
+    session.dispose();
+    injector.destroy();
+  });
+
   it('rejects duplicate normalized names, triggers and shortcuts', () => {
     const { session, injector } = createSession();
     session.updateCue({ ...cue, shortcut: 'F1' });

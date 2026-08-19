@@ -301,8 +301,9 @@ export class PreflightService {
 
   private async audioFilesCheck(cues: readonly Cue[]): Promise<PreflightCheck> {
     const active = cues.filter((cue) => cue.enabled);
-    const missing = active.filter((cue) => !cue.audioFile);
-    const configured = active.filter((item) => item.audioFile);
+    const audioRequired = active.filter((cue) => cue.mode !== 'manual');
+    const missing = audioRequired.filter((cue) => !cue.audioFile);
+    const configured = audioRequired.filter((item) => item.audioFile);
     const states = await Promise.all(
       configured.map(async (cue) => ({ cue, state: await this.isReachable(cue.audioFile) })),
     );
@@ -318,7 +319,7 @@ export class PreflightService {
       label: 'Audio files',
       status: passed ? 'pass' : 'fail',
       severity: passed ? 'info' : 'error',
-      message: `${active.length - missing.length - unavailable.length - timedOut.length} / ${active.length} active cues have valid audio.`,
+      message: `${configured.length - unavailable.length - timedOut.length} / ${audioRequired.length} active playback cues have valid audio.`,
       details: [
         ...missing.map((cue) => `${cue.name}: no audio file configured.`),
         ...unavailable.map((name) => `${name}: audio file is unavailable.`),

@@ -91,9 +91,11 @@ describe('AudioPlayerService', () => {
     await expect(service.play(cue)).resolves.toBe('played');
     await expect(service.play(secondCue)).resolves.toBe('played');
     expect(created).toHaveLength(2);
+    expect(created[1]?.play).toHaveBeenCalled();
+    expect(created[1]?.volume).toBeCloseTo(0.8);
+    await new Promise((resolve) => setTimeout(resolve, 120));
     expect(created[0]?.volume).toBe(0);
     expect(created[0]?.pause).toHaveBeenCalled();
-    expect(created[1]?.volume).toBeCloseTo(0.8);
     expect(service.nowPlaying()?.cueId).toBe('cue-2');
   });
 
@@ -109,6 +111,9 @@ describe('AudioPlayerService', () => {
     const nextPlay = service.play(secondCue);
 
     await expect(nextPlay).resolves.toBe('played');
+    expect(created[1]?.play).toHaveBeenCalled();
+    expect(firstPlayer?.volume).toBeGreaterThan(0);
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(firstPlayer?.volume).toBe(0);
   });
 
