@@ -12,7 +12,11 @@ export class CueEngineService {
 
   readonly cueDetected$ = this.cueDetectedSubject.asObservable();
 
-  processTranscript(transcript: TranscriptEvent, cues: readonly Cue[]): CueEvent[] {
+  processTranscript(
+    transcript: TranscriptEvent,
+    cues: readonly Cue[],
+    options: { commitCooldown?: boolean } = {},
+  ): CueEvent[] {
     const normalizedTranscript = this.normalizer.normalize(
       transcript.segmentText ?? transcript.text,
     );
@@ -41,11 +45,13 @@ export class CueEngineService {
 
     const [winner] = candidates.sort((left, right) => this.compareCandidates(left, right));
     if (!winner) return [];
-    for (const candidate of candidates) {
-      this.lastTriggeredAt.set(candidate.cue.id, transcript.timestamp);
-    }
+    if (options.commitCooldown !== false) this.markTriggered(winner.cue.id, transcript.timestamp);
     this.cueDetectedSubject.next(winner);
     return [winner];
+  }
+
+  markTriggered(cueId: string, timestamp: number): void {
+    this.lastTriggeredAt.set(cueId, timestamp);
   }
 
   private compareCandidates(left: CueEvent, right: CueEvent): number {

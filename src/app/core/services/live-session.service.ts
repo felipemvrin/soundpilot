@@ -380,7 +380,7 @@ export class LiveSessionService {
       return 'pending';
     if (!cue.enabled) return 'disabled';
     if (this.recentlyPlayed().includes(cue.id)) return 'played';
-    if (!cue.audioFile) return 'error';
+    if (!cue.audioFile && cue.mode !== 'manual') return 'error';
     return 'ready';
   }
 
@@ -481,10 +481,32 @@ export class LiveSessionService {
   // ------------------------------------------------------------- detection
 
   processTranscript(transcript: TranscriptEvent): void {
+    const pipelineStartedAt = performance.now();
     this.transcript.set(transcript);
-    if (!transcript.isFinal) return;
+    this.triggerEngine.log({
+      stage: 'transcription-received',
+      timestamp: transcript.timestamp,
+      latencyMs: Math.max(0, Date.now() - transcript.timestamp),
+      details: {
+        isFinal: transcript.isFinal,
+        textLength: transcript.text.length,
+        segmentLength: (transcript.segmentText ?? transcript.text).length,
+      },
+    });
+    if (!transcript.isFinal) {
+      this.processInterimTranscript(transcript, pipelineStartedAt);
+      return;
+    }
     const detected = this.engine.processTranscript(transcript, this.cues());
     for (const event of detected) {
+      const matchLatencyMs = performance.now() - pipelineStartedAt;
+      this.triggerEngine.log({
+        stage: 'keyword-matched',
+        timestamp: event.timestamp,
+        latencyMs: matchLatencyMs,
+        cueId: event.cue.id,
+        keyword: event.trigger.value,
+      });
       const confidence = this.confidenceOf(transcript);
       const threshold = event.cue.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
       const result = this.triggerEngine.evaluateConfidence(event, confidence, threshold);
@@ -503,6 +525,7 @@ export class LiveSessionService {
           keyword: event.trigger.value,
           phrase: transcript.text,
           recognitionConfidence: confidence,
+          latencyMs: matchLatencyMs,
           decision: 'rejected',
           reason: 'recognition-confidence-below-minimum',
           source: 'speech-recognition',
@@ -534,6 +557,7 @@ export class LiveSessionService {
           keyword: event.trigger.value,
           phrase: transcript.text,
           recognitionConfidence: confidence,
+          latencyMs: matchLatencyMs,
           decision: 'pending',
           reason: 'operator-confirmation-required',
           source: 'speech-recognition',
@@ -552,6 +576,7 @@ export class LiveSessionService {
           keyword: event.trigger.value,
           phrase: transcript.text,
           recognitionConfidence: confidence,
+          latencyMs: matchLatencyMs,
           decision: 'accepted',
           reason: 'automatic-cue-accepted',
           source: 'speech-recognition',
@@ -570,6 +595,54 @@ export class LiveSessionService {
         detail: 'Manual mode',
       });
     }
+  }
+
+  private processInterimTranscript(transcript: TranscriptEvent, pipelineStartedAt: number): void {
+    const detected = this.engine.processTranscript(transcript, this.cues(), {
+      commitCooldown: false,
+    });
+    for (const event of detected) {
+      if (event.action !== 'play') continue;
+      const confidence = this.confidenceOf(transcript);
+      const threshold = event.cue.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
+      if (confidence === undefined || confidence < threshold) continue;
+      this.engine.markTriggered?.(event.cue.id, transcript.timestamp);
+      this.handleAcceptedDetection(event, confidence, pipelineStartedAt);
+    }
+  }
+
+  private handleAcceptedDetection(
+    event: CueEvent,
+    confidence: number,
+    pipelineStartedAt: number,
+  ): void {
+    const matchLatencyMs = performance.now() - pipelineStartedAt;
+    const level = this.triggerEngine.confidenceLevel(
+      confidence,
+      event.cue.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD,
+    );
+    this.detection.set({ event, confidence, level, requiresConfirmation: false });
+    this.lastDetectionAt.set(this.now());
+    if (event.cue.cooldownMs > 0) {
+      this.cooldowns.update((map) =>
+        new Map(map).set(event.cue.id, this.now() + event.cue.cooldownMs),
+      );
+    }
+    this.triggerEngine.emitDecision({
+      id: crypto.randomUUID(),
+      timestamp: event.timestamp,
+      state: 'triggering',
+      cueId: event.cue.id,
+      cueName: event.cue.name,
+      keyword: event.trigger.value,
+      phrase: event.transcript.text,
+      recognitionConfidence: confidence,
+      latencyMs: matchLatencyMs,
+      decision: 'accepted',
+      reason: 'automatic-cue-accepted-on-interim',
+      source: 'speech-recognition',
+    });
+    void this.playDetected(event, confidence);
   }
 
   confidenceOf(transcript: TranscriptEvent): number | undefined {
@@ -592,7 +665,16 @@ export class LiveSessionService {
   // ------------------------------------------------------------- internals
 
   private async playDetected(event: CueEvent, confidence?: number): Promise<void> {
+    const startedAt = performance.now();
     const result = await this.audioEngine.play(event.cue);
+    this.triggerEngine.log({
+      stage: 'playback-completed',
+      timestamp: Date.now(),
+      latencyMs: performance.now() - startedAt,
+      cueId: event.cue.id,
+      keyword: event.trigger.value,
+      details: { result },
+    });
     this.record({
       cueId: event.cue.id,
       cueName: event.cue.name,

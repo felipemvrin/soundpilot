@@ -283,6 +283,16 @@ describe('PreflightService', () => {
     injector.destroy();
     vi.useRealTimers();
   });
+
+  it('does not require audio for manual cues', async () => {
+    setBrowserState(devices());
+    const { service, injector } = createService();
+    const report = await service.run([cue({ mode: 'manual', audioFile: '' })]);
+
+    const audioFiles = report.checks.find((check) => check.id === 'audio-files');
+    expect(audioFiles?.status).toBe('pass');
+    injector.destroy();
+  });
 });
 
 describe('PreflightService – selected device checks', () => {

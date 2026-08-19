@@ -129,6 +129,23 @@ fallback opt-in despues de medir falsos positivos y falsos negativos.
 3. Registrar razones de rechazo y latencia de cada etapa.
 4. Diferenciar cues manuales sin audio de cues automaticos.
 
+## P1: observabilidad y decisión de triggers
+
+- `TriggerSettings.debugLogging` permite activar diagnósticos técnicos sin forzar logs en
+  producción.
+- `TriggerDiagnosticEvent` registra etapa, razón, cue, keyword y latencia cuando corresponde.
+- El pipeline registra transcripción recibida, keyword matched, decisión y finalización de
+  playback.
+- Preflight y LIVE consideran válidos los cues `manual` sin audio; solo `automatic` y `confirm`
+  requieren un archivo reproducible.
+- Si varios cues coinciden, gana la keyword más específica, después la prioridad y finalmente el
+  `cue.id`; solo el ganador entra en cooldown.
+- Los cues `automatic` con confidence interim igual o superior a su threshold pueden disparar sin
+  esperar `isFinal`; `confirm` y `manual` mantienen su comportamiento conservador.
+- Al reemplazar audio, el nuevo `play()` comienza inmediatamente mientras el anterior baja volumen
+  en paralelo durante el fade corto; existe una transición solapada controlada para evitar que el
+  fade bloquee la respuesta del trigger.
+
 ### P2/P3
 
 - Readiness summary sin porcentaje enganoso.
@@ -138,12 +155,11 @@ fallback opt-in despues de medir falsos positivos y falsos negativos.
 
 ## Validacion posterior al refactor
 
-- `npm test`: 100 tests passed en 13 archivos.
+- `npm test`: 107 tests passed en 13 archivos.
 - `npm run lint`: passed.
 - `npm run build`: passed, incluyendo compilacion y type checking.
-
-Persisten warnings no bloqueantes de Angular sobre `allowSignalWrites` deprecado en tests de
-Settings/LIVE. No son introducidos por este cambio y no afectan la compilacion.
+  Persisten warnings no bloqueantes de Angular sobre `allowSignalWrites` deprecado en tests de
+  Settings/LIVE. No son introducidos por este cambio y no afectan la compilacion.
 
 El branch queda preparado para continuar con la implementación del Audio Engine, pero no para
 declarar producción de radio hasta completar las pruebas de hardware/browser indicadas en P0.

@@ -16,6 +16,20 @@ import { SettingsService } from '../../../core/services/settings.service';
       </div>
 
       <div class="config-grid">
+        <div class="config-card">
+          <label class="field">
+            <div class="field-label">
+              <span class="eyebrow">Technical diagnostics</span>
+              <input
+                type="checkbox"
+                [checked]="settings().trigger.debugLogging"
+                (change)="updateDebugLogging($any($event.target).checked)"
+              />
+            </div>
+            <p class="field-hint">Log trigger stages, rejection reasons and pipeline latency.</p>
+          </label>
+        </div>
+
         <!-- SENSITIVITY -->
         <div class="config-card">
           <label class="field">
@@ -32,7 +46,7 @@ import { SettingsService } from '../../../core/services/settings.service';
               (input)="updateSensitivity($any($event.target).value)"
               class="slider"
             />
-            <p class="field-hint">How sensitive should keyword detection be</p>
+            <p class="field-hint">Reserved for future fuzzy matching tolerance</p>
           </label>
         </div>
 
@@ -92,8 +106,8 @@ import { SettingsService } from '../../../core/services/settings.service';
         </div>
         <ul class="info-list">
           <li>
-            <strong>Sensitivity:</strong> Higher values detect more aggressively, lower values
-            require stronger keyword matches.
+            <strong>Sensitivity:</strong> Reserved for future fuzzy matching tolerance; exact
+            matching remains active today.
           </li>
           <li>
             <strong>Confidence:</strong> The minimum speech recognition confidence required to
@@ -291,6 +305,10 @@ export class TriggerBehaviorSectionComponent {
     this.settings$.updateTriggerSettings({
       sensitivity: Math.min(1, Math.max(0, Number(value) / 100)),
     });
+  }
+
+  updateDebugLogging(enabled: boolean): void {
+    this.settings$.updateTriggerSettings({ debugLogging: enabled });
   }
 
   updateConfidenceThreshold(value: string): void {

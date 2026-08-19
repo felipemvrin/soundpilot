@@ -1,12 +1,14 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import { Subject } from 'rxjs';
 
 import { ConfidenceLevel } from '../models/cue.model';
+import { SettingsService } from './settings.service';
 import {
   DetectionResult,
   Match,
   TriggerEngineSnapshot,
   TriggerEvent,
+  TriggerDiagnosticEvent,
   TriggerState,
 } from '../models/trigger.model';
 
@@ -22,8 +24,12 @@ const MIN_CONFIDENCE = 0.7;
 @Injectable({ providedIn: 'root' })
 export class TriggerEngineService {
   private readonly triggerEventSubject = new Subject<TriggerEvent>();
+  private readonly diagnosticSubject = new Subject<TriggerDiagnosticEvent>();
 
   readonly triggerEvent$ = this.triggerEventSubject.asObservable();
+  readonly diagnostics$ = this.diagnosticSubject.asObservable();
+
+  constructor(@Optional() private readonly settings: SettingsService | null = null) {}
 
   /** Confidence Evaluation + Trigger Validation step of the detection pipeline. */
   evaluateConfidence(
@@ -38,6 +44,23 @@ export class TriggerEngineService {
 
   emitDecision(event: TriggerEvent): void {
     this.triggerEventSubject.next(event);
+    this.log({
+      stage:
+        event.decision === 'accepted'
+          ? 'decision-accepted'
+          : event.decision === 'pending'
+            ? 'decision-pending'
+            : 'decision-rejected',
+      timestamp: event.timestamp,
+      latencyMs: event.latencyMs,
+      cueId: event.cueId,
+      keyword: event.keyword,
+      reason: event.reason,
+    });
+  }
+
+  log(event: TriggerDiagnosticEvent): void {
+    if (this.settings?.settings().trigger.debugLogging) this.diagnosticSubject.next(event);
   }
 
   confidenceLevel(confidence: number | undefined, threshold: number): ConfidenceLevel {

@@ -30,8 +30,7 @@ export class AudioPlayerService implements AudioEnginePort {
     }
     const transitionId = ++this.transitionId;
     this.cancelFades();
-    await this.fadeOutActivePlayers(transitionId);
-    if (transitionId !== this.transitionId) return 'error';
+    void this.fadeOutActivePlayers(transitionId);
 
     const player = new Audio(cue.audioFile);
     const targetVolume = this.clamp(cue.volume * this.masterVolume);

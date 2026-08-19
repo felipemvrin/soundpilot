@@ -144,6 +144,19 @@ describe('TriggerEngineService cooldown remaining', () => {
   });
 });
 
+describe('TriggerEngineService diagnostics', () => {
+  it('does not emit diagnostics when debug logging is disabled', () => {
+    const engine = new TriggerEngineService();
+    const events: unknown[] = [];
+    const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
+
+    engine.log({ stage: 'transcription-received', timestamp: 1000 });
+
+    expect(events).toHaveLength(0);
+    subscription.unsubscribe();
+  });
+});
+
 describe('TriggerEngineService event contract', () => {
   it('emits a decision event for downstream audio consumers', () => {
     const engine = new TriggerEngineService();

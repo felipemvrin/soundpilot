@@ -37,9 +37,10 @@ export interface MonitoringSettings {
 }
 
 export interface TriggerSettings {
-  sensitivity: number; // 0-1
+  sensitivity: number; // 0-1; reserved for future fuzzy matching tolerance
   confidenceThreshold: number; // 0-1
   cooldownMs: number; // milliseconds
+  debugLogging: boolean;
 }
 
 export interface PlaybackSettings {
@@ -92,9 +93,10 @@ export const DEFAULT_SETTINGS: SettingsConfig = {
     volume: 0.8,
   },
   trigger: {
-    sensitivity: 0.8,
+    sensitivity: 0.25,
     confidenceThreshold: 0.9,
     cooldownMs: 3000,
+    debugLogging: false,
   },
   playback: {
     mode: 'one-shot',
