@@ -32,12 +32,7 @@ export class TriggerEngineService {
     threshold: number,
   ): DetectionResult {
     const level = this.confidenceLevel(confidence, threshold);
-    const allowed =
-      match.action !== 'play' && level !== 'low'
-        ? true
-        : match.action !== 'play'
-          ? true
-          : confidence !== undefined && level !== 'low';
+    const allowed = match.action !== 'play' || (confidence !== undefined && level !== 'low');
     return { match, confidence, level, allowed };
   }
 

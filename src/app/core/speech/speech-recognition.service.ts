@@ -35,6 +35,8 @@ export class SpeechRecognitionService {
   private readonly transcriptSubject = new Subject<TranscriptEvent>();
   private recognition?: RecognitionLike;
   private shouldRestart = false;
+  private restartAttempts = 0;
+  private readonly MAX_RESTART_ATTEMPTS = 5;
   private lastFinalTranscript?: string;
   private lastFinalAt = 0;
 
@@ -48,10 +50,16 @@ export class SpeechRecognitionService {
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
     this.recognition.lang = this.language();
-    this.recognition.onresult = (event) => this.handleResult(event);
+    this.recognition.onresult = (event) => {
+      this.restartAttempts = 0;
+      this.handleResult(event);
+    };
     this.recognition.onend = () => {
       this.isRecognizing.set(false);
-      if (this.shouldRestart) queueMicrotask(() => this.start());
+      if (this.shouldRestart && this.restartAttempts < this.MAX_RESTART_ATTEMPTS) {
+        this.restartAttempts++;
+        queueMicrotask(() => this.start());
+      }
     };
     this.recognition.onerror = (event) => {
       this.isRecognizing.set(false);
@@ -70,6 +78,7 @@ export class SpeechRecognitionService {
 
   stop(): void {
     this.shouldRestart = false;
+    this.restartAttempts = 0;
     this.recognition?.stop();
     this.recognition = undefined;
     this.isRecognizing.set(false);
