@@ -21,12 +21,22 @@ import {
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { CueEngineService } from './cue-engine.service';
 import { CueRepository } from './cue-repository.service';
+import { TextNormalizerService } from './text-normalizer.service';
 
 export const CONFIRMATION_TIMEOUT_MS = 15_000;
 export const DEFAULT_CONFIDENCE_THRESHOLD = 0.9;
 export const MIN_CONFIDENCE = 0.7;
 const MAX_EVENTS = 40;
 const PLAYED_FLASH_MS = 2_500;
+
+export interface CueValidationErrors {
+  name?: string;
+  audio?: string;
+  triggers?: string;
+  shortcut?: string;
+  confidence?: string;
+  cooldown?: string;
+}
 
 const DEFAULT_CUE: Cue = {
   id: 'wife-laugh',
@@ -57,6 +67,7 @@ export class LiveSessionService {
   private readonly engine = inject(CueEngineService);
   private readonly repository = inject(CueRepository);
   private readonly player = inject(AudioPlayerService);
+  private readonly normalizer = inject(TextNormalizerService);
   private readonly subscriptions = new Subscription();
   private readonly confirmationTimeouts = new Map<string, number>();
   private readonly playedFlash = new Map<string, number>();
@@ -174,6 +185,87 @@ export class LiveSessionService {
 
   updateCue(cue: Cue): void {
     this.persist(this.cues().map((item) => (item.id === cue.id ? cue : item)));
+  }
+
+  saveCue(cue: Cue): CueValidationErrors {
+    const errors = this.validateCue(cue);
+    if (Object.keys(errors).length) return errors;
+
+    const exists = this.cues().some((item) => item.id === cue.id);
+    if (exists) {
+      this.updateCue(cue);
+    } else {
+      this.addCue(cue);
+    }
+    return {};
+  }
+
+  validateCue(cue: Cue): CueValidationErrors {
+    const errors: CueValidationErrors = {};
+    const name = cue.name.trim();
+    const normalizedName = this.normalizer.normalize(name);
+    const requiresTrigger = cue.mode !== 'manual';
+
+    if (!name) {
+      errors.name = 'Cue name is required.';
+    } else if (
+      this.cues().some(
+        (item) => item.id !== cue.id && this.normalizer.normalize(item.name) === normalizedName,
+      )
+    ) {
+      errors.name = 'CUE NAME ALREADY EXISTS';
+    }
+
+    if ((cue.mode === 'automatic' || cue.mode === 'confirm') && !cue.audioFile) {
+      errors.audio = 'Audio is required for automatic and confirmation cues.';
+    }
+
+    const normalizedTriggers = cue.triggers.map((trigger) =>
+      this.normalizer.normalize(trigger.value),
+    );
+    if (requiresTrigger && !normalizedTriggers.length) {
+      errors.triggers = 'Add at least one trigger.';
+    } else if (normalizedTriggers.some((trigger) => !trigger)) {
+      errors.triggers = 'Triggers cannot be empty.';
+    } else if (new Set(normalizedTriggers).size !== normalizedTriggers.length) {
+      errors.triggers = 'Triggers must be unique.';
+    } else {
+      for (const trigger of normalizedTriggers) {
+        const conflictingCue = this.cues().find(
+          (item) =>
+            item.id !== cue.id &&
+            item.triggers.some(
+              (candidate) => this.normalizer.normalize(candidate.value) === trigger,
+            ),
+        );
+        if (conflictingCue) {
+          errors.triggers = `TRIGGER CONFLICT: "${trigger}" is already assigned to ${conflictingCue.name}.`;
+          break;
+        }
+      }
+    }
+
+    if (
+      cue.shortcut &&
+      this.cues().some((item) => item.id !== cue.id && item.shortcut === cue.shortcut)
+    ) {
+      const conflictingCue = this.cues().find(
+        (item) => item.id !== cue.id && item.shortcut === cue.shortcut,
+      );
+      errors.shortcut = `SHORTCUT ALREADY ASSIGNED: ${cue.shortcut} is already assigned to ${conflictingCue?.name}.`;
+    }
+    if (
+      cue.confidenceThreshold !== undefined &&
+      (!Number.isFinite(cue.confidenceThreshold) ||
+        cue.confidenceThreshold < 0 ||
+        cue.confidenceThreshold > 1)
+    ) {
+      errors.confidence = 'Confidence must be between 0% and 100%.';
+    }
+    if (!Number.isFinite(cue.cooldownMs) || cue.cooldownMs < 0) {
+      errors.cooldown = 'Cooldown must be zero or greater.';
+    }
+    return errors;
   }
 
   toggleCue(cue: Cue): void {

@@ -9,6 +9,7 @@ import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { CueEngineService } from './cue-engine.service';
 import { CueRepository } from './cue-repository.service';
 import { LiveSessionService } from './live-session.service';
+import { TextNormalizerService } from './text-normalizer.service';
 
 const cue: Cue = {
   id: 'confirm-cue',
@@ -70,6 +71,10 @@ const createSession = (
     {
       provide: CueEngineService,
       useValue: { processTranscript: vi.fn().mockReturnValue(detected) },
+    },
+    {
+      provide: TextNormalizerService,
+      useValue: { normalize: (value: string) => value.trim().toLowerCase() },
     },
     { provide: CueRepository, useValue: { load: vi.fn().mockReturnValue([cue]), save: vi.fn() } },
   ]);
@@ -186,6 +191,42 @@ describe('LiveSessionService confidence routing', () => {
     const { session, injector, player } = createSession('played', [automaticEvent(0)]);
     session.processTranscript({ ...transcript, confidence: 0 });
     expect(player.play).toHaveBeenCalledWith(automatic);
+    session.dispose();
+    injector.destroy();
+  });
+});
+
+describe('LiveSessionService cue configuration', () => {
+  it('rejects duplicate normalized names, triggers and shortcuts', () => {
+    const { session, injector } = createSession();
+    session.updateCue({ ...cue, shortcut: 'F1' });
+    const errors = session.validateCue({
+      ...cue,
+      id: 'second-cue',
+      name: ' confirm ',
+      triggers: [{ id: 'second-trigger', value: 'CONFIRMAR' }],
+      shortcut: 'F1',
+    });
+
+    expect(errors.name).toBe('CUE NAME ALREADY EXISTS');
+    expect(errors.triggers).toContain('TRIGGER CONFLICT');
+    expect(errors.shortcut).toContain('SHORTCUT ALREADY ASSIGNED');
+    session.dispose();
+    injector.destroy();
+  });
+
+  it('persists a valid created cue through the shared cue store', () => {
+    const { session, injector } = createSession();
+    const newCue: Cue = {
+      ...cue,
+      id: 'new-cue',
+      name: 'NEW CUE',
+      triggers: [{ id: 'new-trigger', value: 'nuevo cue' }],
+      shortcut: 'F2',
+    };
+
+    expect(session.saveCue(newCue)).toEqual({});
+    expect(session.cues()).toContainEqual(newCue);
     session.dispose();
     injector.destroy();
   });

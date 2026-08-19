@@ -16,6 +16,13 @@
   justify-content: space-between;
 }
 
+.head-actions,
+.delete-confirm {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
 h1 {
   font-size: 1.4rem;
   margin-top: 0.2rem;
@@ -99,6 +106,15 @@ h2 {
   padding: 0;
 }
 
+.trigger-edit {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
 .actions {
   display: flex;
   gap: 0.4rem;
@@ -144,6 +160,34 @@ h2 {
 
 .test.failed {
   color: var(--danger);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+.empty {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  padding: 1.5rem;
+}
+
+.delete-confirm {
+  bottom: 1rem;
+  justify-content: space-between;
+  left: 50%;
+  max-width: 42rem;
+  position: fixed;
+  transform: translateX(-50%);
+  width: calc(100% - 2rem);
+  z-index: 10;
+}
+
+.delete-confirm strong {
+  display: block;
+  margin-top: 0.25rem;
 }
 
 .editor {
@@ -193,5 +237,11 @@ h2 {
   .fields,
   .meta {
     grid-template-columns: 1fr;
+  }
+  .head,
+  .head-actions,
+  .delete-confirm {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
