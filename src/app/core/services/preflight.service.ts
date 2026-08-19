@@ -6,6 +6,10 @@ import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { TextNormalizerService } from './text-normalizer.service';
 
 export type PreflightProgressHandler = (message: string) => void;
+export const PREFLIGHT_API_TIMEOUT_MS = 5_000;
+
+type TimedResult<T> = { value?: T; timedOut: boolean };
+type AudioFileState = 'available' | 'unavailable' | 'timed-out';
 
 @Injectable({ providedIn: 'root' })
 export class PreflightService {
@@ -14,7 +18,7 @@ export class PreflightService {
 
   async run(cues: readonly Cue[], onProgress?: PreflightProgressHandler): Promise<PreflightReport> {
     onProgress?.('Collecting system state...');
-    const [devices, microphonePermission] = await Promise.all([
+    const [deviceResult, permissionResult] = await Promise.all([
       this.enumerateDevices(),
       this.microphonePermission(),
     ]);
@@ -23,9 +27,9 @@ export class PreflightService {
       onProgress?.(message);
       checks.push(check);
     };
-    addCheck('Checking microphone...', this.microphoneCheck(devices, microphonePermission));
+    addCheck('Checking microphone...', this.microphoneCheck(deviceResult, permissionResult));
     addCheck('Checking speech recognition...', this.speechCheck());
-    addCheck('Checking audio output...', this.outputCheck(devices));
+    addCheck('Checking audio output...', this.outputCheck(deviceResult.value));
     addCheck('Checking cues...', this.cuesLoadedCheck(cues));
     onProgress?.('Checking audio files...');
     checks.push(await this.audioFilesCheck(cues));
@@ -40,27 +44,22 @@ export class PreflightService {
     return { checks, status: this.statusFor(checks), timestamp: Date.now() };
   }
 
-  private async enumerateDevices(): Promise<MediaDeviceInfo[] | undefined> {
-    if (!navigator.mediaDevices?.enumerateDevices) return undefined;
-    try {
-      return await navigator.mediaDevices.enumerateDevices();
-    } catch {
-      return undefined;
-    }
+  private enumerateDevices(): Promise<TimedResult<MediaDeviceInfo[]>> {
+    if (!navigator.mediaDevices?.enumerateDevices) return Promise.resolve({ timedOut: false });
+    return this.withTimeout(navigator.mediaDevices.enumerateDevices());
   }
 
-  private async microphonePermission(): Promise<PermissionState | undefined> {
-    if (!navigator.permissions?.query) return undefined;
-    try {
-      return (await navigator.permissions.query({ name: 'microphone' as PermissionName })).state;
-    } catch {
-      return undefined;
-    }
+  private async microphonePermission(): Promise<TimedResult<PermissionState>> {
+    if (!navigator.permissions?.query) return { timedOut: false };
+    const result = await this.withTimeout(
+      navigator.permissions.query({ name: 'microphone' as PermissionName }),
+    );
+    return { value: result.value?.state, timedOut: result.timedOut };
   }
 
   private microphoneCheck(
-    devices: MediaDeviceInfo[] | undefined,
-    microphonePermission: PermissionState | undefined,
+    deviceResult: TimedResult<MediaDeviceInfo[]>,
+    permissionResult: TimedResult<PermissionState>,
   ): PreflightCheck {
     if (!navigator.mediaDevices?.getUserMedia) {
       return {
@@ -74,7 +73,7 @@ export class PreflightService {
         actionRoute: '/settings',
       };
     }
-    if (microphonePermission === 'denied') {
+    if (permissionResult.value === 'denied') {
       return {
         id: 'microphone',
         label: 'Microphone permission denied',
@@ -86,7 +85,19 @@ export class PreflightService {
         actionRoute: '/settings',
       };
     }
-    if (devices === undefined) {
+    if (deviceResult.timedOut || permissionResult.timedOut) {
+      return {
+        id: 'microphone',
+        label: 'Microphone verification timed out',
+        status: 'warning',
+        severity: 'warning',
+        message: 'SoundPilot could not verify microphone readiness in time.',
+        details: ['Check microphone access in browser settings, then run preflight again.'],
+        actionLabel: 'Open settings',
+        actionRoute: '/settings',
+      };
+    }
+    if (deviceResult.value === undefined) {
       return {
         id: 'microphone',
         label: 'Microphone permission required',
@@ -98,7 +109,7 @@ export class PreflightService {
         actionRoute: '/settings',
       };
     }
-    const inputs = devices.filter((device) => device.kind === 'audioinput');
+    const inputs = deviceResult.value.filter((device) => device.kind === 'audioinput');
     return {
       id: 'microphone',
       label: 'Microphone',
@@ -176,20 +187,27 @@ export class PreflightService {
   private async audioFilesCheck(cues: readonly Cue[]): Promise<PreflightCheck> {
     const active = cues.filter((cue) => cue.enabled);
     const missing = active.filter((cue) => !cue.audioFile);
-    const unreachable: string[] = [];
-    for (const cue of active.filter((item) => item.audioFile)) {
-      if (!(await this.isReachable(cue.audioFile))) unreachable.push(cue.name);
-    }
-    const passed = missing.length === 0 && unreachable.length === 0;
+    const configured = active.filter((item) => item.audioFile);
+    const states = await Promise.all(
+      configured.map(async (cue) => ({ cue, state: await this.isReachable(cue.audioFile) })),
+    );
+    const unavailable = states
+      .filter((item) => item.state === 'unavailable')
+      .map((item) => item.cue.name);
+    const timedOut = states
+      .filter((item) => item.state === 'timed-out')
+      .map((item) => item.cue.name);
+    const passed = missing.length === 0 && unavailable.length === 0 && timedOut.length === 0;
     return {
       id: 'audio-files',
       label: 'Audio files',
       status: passed ? 'pass' : 'fail',
       severity: passed ? 'info' : 'error',
-      message: `${active.length - missing.length - unreachable.length} / ${active.length} active cues have valid audio.`,
+      message: `${active.length - missing.length - unavailable.length - timedOut.length} / ${active.length} active cues have valid audio.`,
       details: [
         ...missing.map((cue) => `${cue.name}: no audio file configured.`),
-        ...unreachable.map((name) => `${name}: audio file is unavailable.`),
+        ...unavailable.map((name) => `${name}: audio file is unavailable.`),
+        ...timedOut.map((name) => `${name}: audio file verification timed out.`),
       ],
       actionLabel: passed ? undefined : 'Fix cues',
       actionRoute: passed ? undefined : '/cues',
@@ -197,13 +215,34 @@ export class PreflightService {
   }
 
   /** Object URLs are dropped when the page reloads, so the file has to be reassigned. */
-  private async isReachable(source: string): Promise<boolean> {
-    try {
-      const response = await fetch(source, { method: 'GET' });
-      return response.ok;
-    } catch {
-      return false;
-    }
+  private async isReachable(source: string): Promise<AudioFileState> {
+    const controller = new AbortController();
+    const result = await this.withTimeout(
+      fetch(source, { method: 'GET', signal: controller.signal }),
+      () => controller.abort(),
+    );
+    if (result.timedOut) return 'timed-out';
+    return result.value?.ok ? 'available' : 'unavailable';
+  }
+
+  private withTimeout<T>(operation: Promise<T>, onTimeout?: () => void): Promise<TimedResult<T>> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const complete = (result: TimedResult<T>): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        resolve(result);
+      };
+      const timeout = setTimeout(() => {
+        onTimeout?.();
+        complete({ timedOut: true });
+      }, PREFLIGHT_API_TIMEOUT_MS);
+      operation.then(
+        (value) => complete({ value, timedOut: false }),
+        () => complete({ timedOut: false }),
+      );
+    });
   }
 
   private triggerConfigCheck(cues: readonly Cue[]): PreflightCheck {

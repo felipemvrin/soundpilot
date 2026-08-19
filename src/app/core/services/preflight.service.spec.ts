@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Cue } from '../models/cue.model';
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
-import { PreflightService } from './preflight.service';
+import { PREFLIGHT_API_TIMEOUT_MS, PreflightService } from './preflight.service';
 import { TextNormalizerService } from './text-normalizer.service';
 
 const cue = (overrides: Partial<Cue> = {}): Cue => ({
@@ -130,6 +130,22 @@ describe('PreflightService', () => {
     injector.destroy();
   });
 
+  it('finishes with a warning when microphone APIs do not respond', async () => {
+    vi.useFakeTimers();
+    setBrowserState(devices());
+    navigator.mediaDevices.enumerateDevices = vi.fn().mockReturnValue(new Promise(() => undefined));
+    const { service, injector } = createService();
+    const reportPromise = service.run([cue()]);
+
+    await vi.advanceTimersByTimeAsync(PREFLIGHT_API_TIMEOUT_MS);
+    const report = await reportPromise;
+
+    expect(report.checks.find((check) => check.id === 'microphone')?.status).toBe('warning');
+    expect(report.status).toBe('ready-with-warnings');
+    injector.destroy();
+    vi.useRealTimers();
+  });
+
   it('reports missing audio, unavailable speech and disabled cues as actionable statuses', async () => {
     setBrowserState(devices());
     const { service, injector } = createService(false);
@@ -221,5 +237,24 @@ describe('PreflightService', () => {
     expect(report.checks.find((check) => check.id === 'output')?.status).toBe('warning');
     expect(report.status).toBe('ready-with-warnings');
     injector.destroy();
+  });
+
+  it('fails audio files that cannot be verified before the timeout', async () => {
+    vi.useFakeTimers();
+    setBrowserState(devices());
+    const fetchMock = vi.fn().mockReturnValue(new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+    const { service, injector } = createService();
+    const reportPromise = service.run([cue()]);
+
+    await vi.advanceTimersByTimeAsync(PREFLIGHT_API_TIMEOUT_MS);
+    const report = await reportPromise;
+
+    const audioFiles = report.checks.find((check) => check.id === 'audio-files');
+    expect(audioFiles?.status).toBe('fail');
+    expect(audioFiles?.details).toContain('INTRO: audio file verification timed out.');
+    expect(fetchMock.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
+    injector.destroy();
+    vi.useRealTimers();
   });
 });
