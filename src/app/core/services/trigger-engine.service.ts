@@ -44,7 +44,7 @@ export class TriggerEngineService {
 
   emitDecision(event: TriggerEvent): void {
     this.triggerEventSubject.next(event);
-    this.log({
+    const diagnostic: TriggerDiagnosticEvent = {
       stage:
         event.decision === 'accepted'
           ? 'decision-accepted'
@@ -56,7 +56,17 @@ export class TriggerEngineService {
       cueId: event.cueId,
       keyword: event.keyword,
       reason: event.reason,
-    });
+      details: {
+        ...(event.decision === undefined ? {} : { decision: event.decision }),
+        state: event.state,
+        ...(event.recognitionConfidence === undefined
+          ? {}
+          : { recognitionConfidence: event.recognitionConfidence }),
+        ...(event.matchConfidence === undefined ? {} : { matchConfidence: event.matchConfidence }),
+        ...(event.source === undefined ? {} : { source: event.source }),
+      },
+    };
+    this.diagnosticSubject.next(diagnostic);
   }
 
   log(event: TriggerDiagnosticEvent): void {
