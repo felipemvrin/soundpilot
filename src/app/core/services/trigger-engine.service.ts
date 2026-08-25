@@ -56,6 +56,15 @@ export class TriggerEngineService {
       cueId: event.cueId,
       keyword: event.keyword,
       reason: event.reason,
+      details: {
+        ...(event.decision === undefined ? {} : { decision: event.decision }),
+        state: event.state,
+        ...(event.recognitionConfidence === undefined
+          ? {}
+          : { recognitionConfidence: event.recognitionConfidence }),
+        ...(event.matchConfidence === undefined ? {} : { matchConfidence: event.matchConfidence }),
+        ...(event.source === undefined ? {} : { source: event.source }),
+      },
     });
   }
 

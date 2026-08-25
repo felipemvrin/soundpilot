@@ -20,7 +20,7 @@ import {
   SessionEvent,
   SessionOutcome,
 } from '../models/session.model';
-import { TriggerState } from '../models/trigger.model';
+import { TriggerDiagnosticEvent, TriggerState } from '../models/trigger.model';
 import { SpeechRecognitionService } from '../speech/speech-recognition.service';
 import { CueEngineService } from './cue-engine.service';
 import { CueRepository } from './cue-repository.service';
@@ -90,6 +90,7 @@ export class LiveSessionService {
   readonly events = signal<SessionEvent[]>([]);
   readonly pendingConfirmations = signal<PendingConfirmation[]>([]);
   readonly now = signal(Date.now());
+  readonly latestDiagnostic = signal<TriggerDiagnosticEvent | undefined>(undefined);
   readonly airMode = signal(false);
   readonly preflightApproved = signal(false);
   readonly muted = signal(false);
@@ -163,6 +164,9 @@ export class LiveSessionService {
   constructor() {
     this.subscriptions.add(
       this.speech.transcript$.subscribe((transcript) => this.processTranscript(transcript)),
+    );
+    this.subscriptions.add(
+      this.triggerEngine.diagnostics$.subscribe((event) => this.latestDiagnostic.set(event)),
     );
     this.clock = setInterval(() => this.now.set(Date.now()), 500) as unknown as number;
   }

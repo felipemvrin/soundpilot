@@ -205,6 +205,29 @@
     </p>
   </section>
 
+  @if (session.latestDiagnostic(); as diagnostic) {
+    <section class="panel diagnosis" aria-label="Trigger diagnostics">
+      <header class="panel-head">
+        <span class="eyebrow">Trigger diagnostics</span>
+        <span class="state state--live">{{ diagnostic.stage }}</span>
+      </header>
+      <div class="diagnostic-body">
+        <strong>{{ diagnostic.reason ?? 'No reason provided' }}</strong>
+        <p class="hint">
+          Cue: {{ diagnostic.cueId ?? 'n/a' }} · keyword: {{ diagnostic.keyword ?? 'n/a' }} ·
+          latency: {{ diagnostic.latencyMs ?? 0 }}ms
+        </p>
+        @if (diagnostic.details) {
+          <ul class="diagnostic-details">
+            @for (entry of diagnostic.details | keyvalue; track entry.key) {
+              <li>{{ entry.key }}: {{ entry.value }}</li>
+            }
+          </ul>
+        }
+      </div>
+    </section>
+  }
+
   <div class="grid">
     <section class="panel transcript" aria-label="Live transcript">
       <header class="panel-head">

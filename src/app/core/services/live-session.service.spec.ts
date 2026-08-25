@@ -224,6 +224,85 @@ describe('LiveSessionService confidence routing', () => {
   });
 });
 
+describe('LiveSessionService diagnostics', () => {
+  it('stores the latest trigger diagnostic event for the live view', () => {
+    const settingsStub = {
+      settings: () => ({ trigger: { debugLogging: true } }),
+    } as unknown as import('./settings.service').SettingsService;
+    const triggerEngine = new TriggerEngineService(settingsStub);
+    const transcriptSubject = new Subject<TranscriptEvent>();
+    const player = {
+      play: vi.fn().mockResolvedValue('played'),
+      stop: vi.fn(),
+      stopAll: vi.fn(),
+      replayLast: vi.fn().mockResolvedValue('played'),
+      setMasterVolume: vi.fn(),
+      nowPlaying: signal(undefined),
+      lastPlayed: signal(undefined),
+    };
+    const injector = createEnvironmentInjector([
+      { provide: AudioPlayerService, useValue: player },
+      {
+        provide: MicrophoneService,
+        useValue: {
+          isListening: signal(false),
+          level: signal(0),
+          bands: signal([]),
+          start: vi.fn(),
+          stop: vi.fn(),
+        },
+      },
+      {
+        provide: SpeechRecognitionService,
+        useValue: {
+          transcript$: transcriptSubject.asObservable(),
+          available: signal(true),
+          isRecognizing: signal(false),
+          start: vi.fn(),
+          stop: vi.fn(),
+        },
+      },
+      {
+        provide: CueEngineService,
+        useValue: { processTranscript: vi.fn().mockReturnValue([]), markTriggered: vi.fn() },
+      },
+      {
+        provide: TextNormalizerService,
+        useValue: { normalize: (value: string) => value.trim().toLowerCase() },
+      },
+      { provide: CueRepository, useValue: { load: vi.fn().mockReturnValue([cue]), save: vi.fn() } },
+      { provide: TriggerEngineService, useValue: triggerEngine },
+    ]);
+
+    const session = runInInjectionContext(injector, () => new LiveSessionService());
+    triggerEngine.emitDecision({
+      id: 'event-1',
+      timestamp: 1000,
+      state: 'triggering',
+      cueId: cue.id,
+      cueName: cue.name,
+      keyword: cue.triggers[0].value,
+      phrase: 'confirmar',
+      recognitionConfidence: 0.95,
+      matchConfidence: 0.97,
+      decision: 'accepted',
+      reason: 'automatic-cue-accepted',
+      source: 'speech-recognition',
+      latencyMs: 120,
+    });
+
+    expect(session.latestDiagnostic()).toMatchObject({
+      stage: 'decision-accepted',
+      cueId: cue.id,
+      reason: 'automatic-cue-accepted',
+      latencyMs: 120,
+    });
+
+    session.dispose();
+    injector.destroy();
+  });
+});
+
 describe('LiveSessionService trigger engine state', () => {
   const automatic: Cue = { ...cue, id: 'auto', mode: 'automatic', confidenceThreshold: 0.9 };
   const automaticEvent = (confidence: number): CueEvent => ({

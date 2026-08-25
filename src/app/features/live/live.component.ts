@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, KeyValuePipe } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -50,6 +50,7 @@ const TRIGGER_STATE_ICON: Record<TriggerState, string> = {
   selector: 'app-live',
   imports: [
     DatePipe,
+    KeyValuePipe,
     RouterLink,
     ConfidenceBadgeComponent,
     CueStatusChipComponent,

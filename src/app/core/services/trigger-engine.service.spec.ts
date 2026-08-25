@@ -171,6 +171,48 @@ describe('TriggerEngineService diagnostics', () => {
     expect(events[0]).toMatchObject(diagnostic);
     subscription.unsubscribe();
   });
+
+  it('includes decision metadata and latency in diagnostics for accepted triggers', () => {
+    const settingsStub = {
+      settings: () => ({ trigger: { debugLogging: true } }),
+    } as unknown as import('./settings.service').SettingsService;
+    const engine = new TriggerEngineService(settingsStub);
+    const events: unknown[] = [];
+    const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
+
+    engine.emitDecision({
+      id: 'event-1',
+      timestamp: 1000,
+      state: 'triggering',
+      cueId: cue.id,
+      cueName: cue.name,
+      keyword: cue.triggers[0].value,
+      phrase: 'esposa',
+      recognitionConfidence: 0.95,
+      matchConfidence: 0.97,
+      decision: 'accepted',
+      reason: 'automatic-cue-accepted',
+      source: 'speech-recognition',
+      latencyMs: 120,
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      stage: 'decision-accepted',
+      cueId: cue.id,
+      keyword: cue.triggers[0].value,
+      reason: 'automatic-cue-accepted',
+      latencyMs: 120,
+      details: {
+        decision: 'accepted',
+        state: 'triggering',
+        recognitionConfidence: 0.95,
+        matchConfidence: 0.97,
+        source: 'speech-recognition',
+      },
+    });
+    subscription.unsubscribe();
+  });
 });
 
 describe('TriggerEngineService event contract', () => {
