@@ -1,0 +1,38 @@
+name: Documentation Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  project-documentation:
+    name: Require project documentation review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require documentation for project changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+          project_changes="$(printf '%s\n' "$changed_files" | grep -E '^(src/|package(-lock)?\.json$|angular\.json$|tsconfig[^/]*\.json$|vitest\.config\.ts$|eslint\.config\.js$|Dockerfile$)' || true)"
+          documentation_changes="$(printf '%s\n' "$changed_files" | grep -E '^(README\.md$|docs/|\.github/PULL_REQUEST_TEMPLATE\.md$|\.github/skills/)' || true)"
+
+          if [[ -n "$project_changes" && -z "$documentation_changes" ]]; then
+            echo "Project files changed without documentation updates."
+            echo "Update docs/project-status.md, README.md, docs/changelog.md, or explain the exception in the PR."
+            printf '%s\n' "$project_changes"
+            exit 1
+          fi
+
+          echo "Documentation review requirement satisfied."
