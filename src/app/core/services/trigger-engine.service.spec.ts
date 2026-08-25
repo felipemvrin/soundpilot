@@ -172,11 +172,25 @@ describe('TriggerEngineService diagnostics', () => {
     subscription.unsubscribe();
   });
 
+  it('emits diagnostics from emitDecision regardless of debugLogging setting', () => {
+    const engine = new TriggerEngineService();
+    const events: unknown[] = [];
+    const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
+
+    engine.emitDecision({
+      id: 'event-0',
+      timestamp: 900,
+      state: 'listening',
+      decision: 'rejected',
+      reason: 'no-match',
+    });
+
+    expect(events).toHaveLength(1);
+    subscription.unsubscribe();
+  });
+
   it('includes decision metadata and latency in diagnostics for accepted triggers', () => {
-    const settingsStub = {
-      settings: () => ({ trigger: { debugLogging: true } }),
-    } as unknown as import('./settings.service').SettingsService;
-    const engine = new TriggerEngineService(settingsStub);
+    const engine = new TriggerEngineService();
     const events: unknown[] = [];
     const subscription = engine.diagnostics$.subscribe((event) => events.push(event));
 

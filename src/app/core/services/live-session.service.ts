@@ -215,6 +215,7 @@ export class LiveSessionService {
   stopListening(): void {
     this.speech.stop();
     this.microphone.stop();
+    this.latestDiagnostic.set(undefined);
   }
 
   dismissError(): void {

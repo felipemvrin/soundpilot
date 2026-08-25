@@ -226,10 +226,7 @@ describe('LiveSessionService confidence routing', () => {
 
 describe('LiveSessionService diagnostics', () => {
   it('stores the latest trigger diagnostic event for the live view', () => {
-    const settingsStub = {
-      settings: () => ({ trigger: { debugLogging: true } }),
-    } as unknown as import('./settings.service').SettingsService;
-    const triggerEngine = new TriggerEngineService(settingsStub);
+    const triggerEngine = new TriggerEngineService();
     const transcriptSubject = new Subject<TranscriptEvent>();
     const player = {
       play: vi.fn().mockResolvedValue('played'),
