@@ -1,4 +1,4 @@
-import { DatePipe, KeyValuePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -50,7 +50,6 @@ const TRIGGER_STATE_ICON: Record<TriggerState, string> = {
   selector: 'app-live',
   imports: [
     DatePipe,
-    KeyValuePipe,
     RouterLink,
     ConfidenceBadgeComponent,
     CueStatusChipComponent,
@@ -98,6 +97,31 @@ export class LiveComponent {
 
   readonly triggerStateLabel = computed(() => TRIGGER_STATE_LABEL[this.session.triggerState()]);
   readonly triggerStateIcon = computed(() => TRIGGER_STATE_ICON[this.session.triggerState()]);
+
+  diagnosticStageLabel(stage: string): string {
+    return (
+      {
+        'input-received': 'Input received',
+        'transcription-received': 'Voice received',
+        'keyword-matched': 'Keyword detected',
+        'decision-accepted': 'Cue accepted',
+        'decision-rejected': 'Cue skipped',
+        'decision-pending': 'Confirmation needed',
+        'playback-completed': 'Playback finished',
+      }[stage] ?? 'Recent activity'
+    );
+  }
+
+  diagnosticMessage(reason: string | undefined): string {
+    return (
+      {
+        'recognition-confidence-below-minimum': 'Not played: confidence too low',
+        'operator-confirmation-required': 'Waiting for your confirmation',
+        'automatic-cue-accepted': 'Cue accepted automatically',
+        'automatic-cue-accepted-on-interim': 'Cue accepted while listening',
+      }[reason ?? ''] ?? 'Trigger Engine status updated'
+    );
+  }
   /** Whether the state dot should pulse (engine actively working vs. holding steady). */
   readonly triggerStatePulsing = computed(() =>
     (

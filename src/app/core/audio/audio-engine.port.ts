@@ -7,6 +7,7 @@ export type AudioEngineResult = 'played' | 'error';
 /** Port consumed by trigger decisions; the current adapter is browser HTMLAudioElement playback. */
 export interface AudioEnginePort {
   play(cue: Cue): Promise<AudioEngineResult>;
+  replayLast(): Promise<AudioEngineResult | 'unavailable'>;
   stop(cueId: string): void;
   stopAll(): void;
 }

@@ -417,7 +417,7 @@ export class LiveSessionService {
   async replayLast(): Promise<void> {
     const last = this.lastPlayed();
     if (!last) return;
-    const result = await this.player.replayLast();
+    const result = await this.audioEngine.replayLast();
     if (result === 'unavailable') return;
     this.record({
       cueId: last.cueId,

@@ -74,6 +74,29 @@
   border-color: var(--danger);
 }
 
+.diagnosis {
+  padding: 0.55rem 0.8rem;
+}
+
+.diagnosis .panel-head {
+  margin-bottom: 0.25rem;
+}
+
+.diagnostic-body {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
+.diagnostic-body strong {
+  font-size: 0.88rem;
+}
+
+.diagnostic-body .hint {
+  margin: 0;
+}
+
 .banner {
   align-items: flex-start;
   background: var(--surface);
@@ -178,8 +201,21 @@
   display: grid;
   flex: 2 1 16rem;
   gap: 0.75rem;
-  grid-template-columns: 1fr 1.15fr 0.85fr;
+  grid-template-columns: 1.15fr 1.25fr 1.2fr 0.8fr;
   min-height: 12rem;
+}
+
+.grid .listening {
+  min-width: 0;
+}
+
+.grid .listening app-live-listening-indicator {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.grid .listening-hint {
+  margin: 0;
 }
 
 .panel-head {

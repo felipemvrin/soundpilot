@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { Cue, CueMode } from '../../core/models/cue.model';
-import { AudioPlayerService } from '../../core/audio/audio-player.service';
+import { AUDIO_ENGINE_PORT, AudioEnginePort } from '../../core/audio/audio-engine.port';
 import {
   CueValidationErrors,
   LiveSessionService,
@@ -37,7 +37,7 @@ const emptyDraft = (): Cue => ({
 })
 export class CuesComponent {
   readonly session = inject(LiveSessionService);
-  private readonly player = inject(AudioPlayerService);
+  private readonly audioEngine = inject<AudioEnginePort>(AUDIO_ENGINE_PORT);
 
   readonly shortcuts = SHORTCUTS;
   readonly draft = signal<Cue>(emptyDraft());
@@ -220,14 +220,14 @@ export class CuesComponent {
       return;
     }
     if (this.testingCueId() === cue.id) {
-      this.player.stop(cue.id);
+      this.audioEngine.stop(cue.id);
       this.testingCueId.set(undefined);
       return;
     }
     if (this.testingCueId()) return;
     this.testingCueId.set(cue.id);
     this.testResult.set({ cueId: cue.id, ok: true, message: 'Testing audio...' });
-    const result = await this.player.play(cue);
+    const result = await this.audioEngine.play(cue);
     this.testingCueId.set(undefined);
     this.testResult.set(
       result === 'played'
