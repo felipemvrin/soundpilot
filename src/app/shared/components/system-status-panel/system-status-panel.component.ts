@@ -46,6 +46,9 @@ export interface SystemStatusItem {
         flex-shrink: 0;
         height: 0.5rem;
         width: 0.5rem;
+        box-shadow:
+          0 0 0 2px rgb(0 0 0 / 35%),
+          0 0 6px currentColor;
       }
       .label {
         color: var(--text);
@@ -57,12 +60,15 @@ export interface SystemStatusItem {
       }
       .item--ok .dot {
         background: var(--ok);
+        color: var(--ok);
       }
       .item--warn .dot {
         background: var(--warn);
+        color: var(--warn);
       }
       .item--error .dot {
         background: var(--danger);
+        color: var(--danger);
       }
     `,
   ],

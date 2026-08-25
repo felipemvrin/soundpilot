@@ -13,7 +13,7 @@ import { Component, computed, input } from '@angular/core';
     <span [style.width.%]="percent()"></span>
   </div>`,
   styles: [
-    ':host{display:block}.meter{background:#202938;border-radius:2px;height:.7rem;overflow:hidden;width:100%}.meter span{background:#e9bd4d;display:block;height:100%;transition:width .1s}',
+    ':host{display:block}.meter{background:var(--surface-deep);border:1px solid var(--line);border-radius:2px;box-shadow:0 1px 2px rgb(0 0 0 / 55%) inset;height:.7rem;overflow:hidden;width:100%}.meter span{background:linear-gradient(90deg,var(--ok),var(--warn) 78%,var(--danger));display:block;height:100%;transition:width .1s}',
   ],
 })
 export class AudioLevelMeterComponent {

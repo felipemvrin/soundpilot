@@ -14,18 +14,43 @@
 
 .ops {
   align-items: center;
-  background: var(--surface);
+  background: var(--surface-deep);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   display: flex;
   gap: 1rem;
   padding: 0.7rem 1rem;
+  box-shadow: var(--sp-shadow-control);
+  position: relative;
 }
 
 .mic-block {
   display: grid;
   gap: 0.25rem;
   min-width: 9rem;
+}
+
+.listen-button {
+  min-width: 13rem;
+}
+
+.control-led {
+  background: var(--ok);
+  border: 1px solid rgb(0 0 0 / 55%);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgb(39 209 140 / 55%);
+  height: 0.45rem;
+  width: 0.45rem;
+}
+
+.listen-button.is-listening {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.listen-button.is-listening .control-led {
+  background: var(--warn);
+  box-shadow: 0 0 6px rgb(255 176 32 / 60%);
 }
 
 .recog {
@@ -64,6 +89,9 @@
 .listening.state--matched,
 .listening.state--triggering {
   border-color: var(--accent);
+  box-shadow:
+    var(--sp-shadow-panel),
+    0 0 0 1px rgb(105 213 198 / 8%);
 }
 
 .listening.state--cooldown {
@@ -257,6 +285,13 @@
   transition: border-color 0.2s ease;
 }
 
+.transcript,
+.detected,
+.action {
+  background-color: var(--surface-deep);
+  background-image: none;
+}
+
 .detected.state--matched {
   animation: detected-flash 0.4s ease-out;
   border-color: var(--warn);
@@ -317,10 +352,18 @@
   margin-top: 0.75rem;
 }
 
+.action-buttons .btn {
+  min-height: 2.5rem;
+}
+
 .chips {
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+
+.cues-strip {
+  padding-top: 1rem;
 }
 
 .empty-triggers {
@@ -358,6 +401,13 @@
 
 .live.air .cue-name {
   color: var(--air);
+}
+
+.live.air .ops {
+  border-color: rgb(255 56 48 / 60%);
+  box-shadow:
+    var(--sp-shadow-control),
+    0 0 18px rgb(255 56 48 / 10%);
 }
 
 .live.air .listening app-live-listening-indicator {

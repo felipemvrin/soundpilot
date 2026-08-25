@@ -1,21 +1,39 @@
 :root {
-  --background: #0b111b;
-  --surface: #151f2d;
-  --surface-alt: #1b2738;
-  --surface-deep: #0f1622;
-  --line: #2e3c51;
-  --line-strong: #3d4f69;
-  --text: #eff5ff;
-  --muted: #9eacc0;
-  --accent: #75d3c6;
-  --ok: #42d878;
-  --ok-soft: #a4f7bc;
-  --warn: #e9bd4d;
+  --sp-bg: #0e1117;
+  --sp-surface: #161b22;
+  --sp-surface-elevated: #20262f;
+  --sp-surface-deep: #0b0e13;
+  --sp-border: #2a313b;
+  --sp-border-strong: #3a4654;
+  --sp-text-primary: #e6edf3;
+  --sp-text-secondary: #9ba8ba;
+  --sp-success: #27d18c;
+  --sp-warning: #ffb020;
+  --sp-danger: #ff3830;
+  --sp-info: #4aa3ff;
+  --sp-accent: #69d5c6;
+  --sp-shadow-panel: 0 1px 0 rgb(255 255 255 / 4%) inset, 0 4px 12px rgb(0 0 0 / 24%);
+  --sp-shadow-control:
+    0 1px 0 rgb(255 255 255 / 8%) inset, 0 -1px 0 rgb(0 0 0 / 55%) inset,
+    0 4px 10px rgb(0 0 0 / 38%);
+  --sp-metal-texture: linear-gradient(105deg, rgb(255 255 255 / 2%) 0 1px, transparent 1px 5px);
+  --background: var(--sp-bg);
+  --surface: var(--sp-surface);
+  --surface-alt: var(--sp-surface-elevated);
+  --surface-deep: var(--sp-surface-deep);
+  --line: var(--sp-border);
+  --line-strong: var(--sp-border-strong);
+  --text: var(--sp-text-primary);
+  --muted: var(--sp-text-secondary);
+  --accent: var(--sp-accent);
+  --ok: var(--sp-success);
+  --ok-soft: #8de9b7;
+  --warn: var(--sp-warning);
   --danger: #ff6f6f;
-  --air: #ff4d4d;
-  --radius: 8px;
-  --radius-sm: 4px;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --air: var(--sp-danger);
+  --radius: 6px;
+  --radius-sm: 3px;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 * {
@@ -30,7 +48,12 @@ body {
 body {
   background: var(--background);
   color: var(--text);
-  font-family: var(--mono);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   margin: 0;
   min-width: 320px;
 }
@@ -63,13 +86,28 @@ p {
 /* ---------------------------------------------------------------- surfaces */
 
 .panel {
-  background: var(--surface);
+  background-color: var(--surface);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 2.5%), transparent 18%);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding: 0.9rem 1rem;
+  box-shadow: var(--sp-shadow-panel);
+  position: relative;
+}
+
+.panel::before,
+.ops::before {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 8%), transparent);
+  content: '';
+  height: 1px;
+  left: 1rem;
+  opacity: 0.55;
+  position: absolute;
+  right: 1rem;
+  top: 0;
 }
 
 .eyebrow {
@@ -112,21 +150,33 @@ p {
   text-transform: uppercase;
   transition:
     background 0.12s ease,
-    border-color 0.12s ease;
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+  box-shadow: var(--sp-shadow-control);
 }
 
 .btn:hover:not(:disabled) {
   border-color: var(--accent);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 12%) inset,
+    0 0 0 1px rgb(105 213 198 / 12%),
+    0 5px 12px rgb(0 0 0 / 42%);
+}
+
+.btn:active:not(:disabled) {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 55%) inset;
+  transform: translateY(1px);
 }
 
 .btn--primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, #82dfc4 0%, #398e78 100%);
   border-color: var(--accent);
   color: #0d1a26;
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: #8ce0d4;
+  background: linear-gradient(180deg, #9ae9d1 0%, #48ad91 100%);
 }
 
 .btn--ghost {
@@ -145,8 +195,12 @@ p {
 }
 
 .btn--air.is-on {
-  background: var(--air);
+  background: linear-gradient(#ff6259, #c92f2b);
   color: #1a0606;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 12%) inset,
+    0 0 12px rgb(255 56 48 / 28%),
+    0 4px 10px rgb(0 0 0 / 45%);
 }
 
 .btn--lg {
@@ -199,6 +253,9 @@ label.field {
   min-width: 1.7rem;
   padding: 0.12rem 0.34rem;
   text-align: center;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 7%) inset,
+    0 1px 1px rgb(0 0 0 / 55%);
 }
 
 /* ------------------------------------------------------------------ states */

@@ -58,7 +58,12 @@ const STATUS_GLYPH: Record<CueRuntimeStatus, string> = {
         display: block;
       }
       .chip {
-        background: var(--surface-alt);
+        background-color: var(--surface-alt);
+        background-image:
+          var(--sp-metal-texture), linear-gradient(180deg, rgb(255 255 255 / 3%), transparent 22%);
+        background-size:
+          5px 5px,
+          auto;
         border: 1px solid var(--line-strong);
         border-left: 3px solid var(--line-strong);
         border-radius: var(--radius-sm);
@@ -71,9 +76,22 @@ const STATUS_GLYPH: Record<CueRuntimeStatus, string> = {
         padding: 0.6rem 0.7rem;
         text-align: left;
         width: 100%;
+        box-shadow: var(--sp-shadow-control);
+        transition:
+          border-color 0.12s ease,
+          box-shadow 0.12s ease,
+          transform 0.12s ease;
       }
       .chip:hover:not(:disabled) {
         border-color: var(--accent);
+        box-shadow:
+          0 1px 0 rgb(255 255 255 / 10%) inset,
+          0 0 0 1px rgb(105 213 198 / 10%),
+          0 5px 12px rgb(0 0 0 / 40%);
+      }
+      .chip:active:not(:disabled) {
+        box-shadow: 0 1px 2px rgb(0 0 0 / 55%) inset;
+        transform: translateY(1px);
       }
       .name {
         font-size: 0.95rem;

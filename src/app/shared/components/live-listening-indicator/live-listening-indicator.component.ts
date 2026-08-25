@@ -12,6 +12,10 @@ import { Component, computed, input } from '@angular/core';
       <span class="dot" [class.active]="active()" aria-hidden="true"></span>
       <span class="label">{{ label() }}</span>
     </div>
+    <div class="scale" aria-hidden="true">
+      <span>-60</span><span>-48</span><span>-36</span><span>-24</span><span>-18</span
+      ><span>-12</span><span>-6</span><span>0</span>
+    </div>
     <div class="bars" role="img" [attr.aria-label]="label() + ', input level ' + percent() + '%'">
       @for (bar of bars; track bar) {
         <span [style.height.%]="barHeight(bar)" [class.active]="active()"></span>
@@ -48,10 +52,22 @@ import { Component, computed, input } from '@angular/core';
         text-transform: uppercase;
       }
       .bars {
+        background: var(--surface-deep);
+        border: 1px solid var(--line);
+        border-radius: 3px;
         align-items: flex-end;
         display: flex;
         gap: 0.2rem;
         height: 2.6rem;
+        padding: 0.35rem;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 50%) inset;
+      }
+      .scale {
+        color: var(--muted);
+        display: flex;
+        font: 0.55rem/1 var(--mono);
+        justify-content: space-between;
+        padding: 0 0.35rem;
       }
       .bars span {
         background: #263447;
@@ -61,7 +77,14 @@ import { Component, computed, input } from '@angular/core';
         transition: height 0.12s ease;
       }
       .bars span.active {
-        background: var(--accent);
+        background: var(--ok);
+        box-shadow: 0 0 5px rgb(105 213 198 / 22%);
+      }
+      .bars span:nth-last-child(-n + 4).active {
+        background: var(--warn);
+      }
+      .bars span:nth-last-child(-n + 2).active {
+        background: var(--danger);
       }
       .hint {
         color: var(--muted);

@@ -11,10 +11,13 @@
     </div>
     <button
       type="button"
-      class="btn btn--lg"
+      class="btn btn--lg listen-button"
       [class.btn--primary]="!session.isListening()"
+      [class.is-listening]="session.isListening()"
+      [attr.aria-pressed]="session.isListening()"
       (click)="session.toggleListening()"
     >
+      <span class="control-led" aria-hidden="true"></span>
       {{ session.isListening() ? 'Stop listening' : 'Start listening' }}
     </button>
     <span class="hint recog">
