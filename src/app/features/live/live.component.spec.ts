@@ -5,6 +5,8 @@ import { Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MicrophoneService } from '../../core/audio/microphone.service';
+import { AUDIO_ENGINE_PORT } from '../../core/audio/audio-engine.port';
+import { AudioPlayerService } from '../../core/audio/audio-player.service';
 import { Cue, TranscriptEvent } from '../../core/models/cue.model';
 import { CueRepository } from '../../core/services/cue-repository.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
@@ -74,6 +76,7 @@ const setup = (cues: Cue[] = [cue()]): Harness => {
         provide: CueRepository,
         useValue: { load: vi.fn().mockReturnValue(cues), save: vi.fn() },
       },
+      { provide: AUDIO_ENGINE_PORT, useExisting: AudioPlayerService },
     ],
   });
 
@@ -191,5 +194,51 @@ describe('LiveComponent', () => {
 
     expect(component.preflightOutdated()).toBe(true);
     expect(session.preflightApproved()).toBe(false);
+  });
+
+  describe('diagnosticStageLabel', () => {
+    it('translates known stages to operator-friendly labels', () => {
+      const { component } = setup();
+      expect(component.diagnosticStageLabel('input-received')).toBe('Input received');
+      expect(component.diagnosticStageLabel('transcription-received')).toBe('Voice received');
+      expect(component.diagnosticStageLabel('keyword-matched')).toBe('Keyword detected');
+      expect(component.diagnosticStageLabel('decision-accepted')).toBe('Cue accepted');
+      expect(component.diagnosticStageLabel('decision-rejected')).toBe('Cue skipped');
+      expect(component.diagnosticStageLabel('decision-pending')).toBe('Confirmation needed');
+      expect(component.diagnosticStageLabel('playback-completed')).toBe('Playback finished');
+    });
+
+    it('returns a fallback for unknown stages', () => {
+      const { component } = setup();
+      expect(component.diagnosticStageLabel('unknown-stage')).toBe('Recent activity');
+    });
+  });
+
+  describe('diagnosticMessage', () => {
+    it('translates known reasons to operator-friendly messages', () => {
+      const { component } = setup();
+      expect(component.diagnosticMessage('recognition-confidence-below-minimum')).toBe(
+        'Not played: confidence too low',
+      );
+      expect(component.diagnosticMessage('operator-confirmation-required')).toBe(
+        'Waiting for your confirmation',
+      );
+      expect(component.diagnosticMessage('automatic-cue-accepted')).toBe(
+        'Cue accepted automatically',
+      );
+      expect(component.diagnosticMessage('automatic-cue-accepted-on-interim')).toBe(
+        'Cue accepted while listening',
+      );
+    });
+
+    it('returns the raw reason string for unknown reasons', () => {
+      const { component } = setup();
+      expect(component.diagnosticMessage('some-unknown-reason')).toBe('some-unknown-reason');
+    });
+
+    it('returns the generic fallback when reason is undefined', () => {
+      const { component } = setup();
+      expect(component.diagnosticMessage(undefined)).toBe('Trigger Engine status updated');
+    });
   });
 });

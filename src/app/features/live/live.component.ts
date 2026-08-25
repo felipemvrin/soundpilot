@@ -1,11 +1,11 @@
-import { DatePipe, KeyValuePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Cue } from '../../core/models/cue.model';
 import { PendingConfirmation, PreflightReport } from '../../core/models/session.model';
 import { TriggerState } from '../../core/models/trigger.model';
-import { AudioPlayerService } from '../../core/audio/audio-player.service';
+import { AUDIO_ENGINE_PORT, AudioEnginePort } from '../../core/audio/audio-engine.port';
 import { SettingsService } from '../../core/services/settings.service';
 import { LiveSessionService } from '../../core/services/live-session.service';
 import { PreflightService } from '../../core/services/preflight.service';
@@ -50,7 +50,6 @@ const TRIGGER_STATE_ICON: Record<TriggerState, string> = {
   selector: 'app-live',
   imports: [
     DatePipe,
-    KeyValuePipe,
     RouterLink,
     ConfidenceBadgeComponent,
     CueStatusChipComponent,
@@ -65,7 +64,7 @@ const TRIGGER_STATE_ICON: Record<TriggerState, string> = {
 export class LiveComponent {
   readonly session = inject(LiveSessionService);
   private readonly preflight = inject(PreflightService);
-  private readonly player = inject(AudioPlayerService);
+  private readonly audioEngine = inject<AudioEnginePort>(AUDIO_ENGINE_PORT);
   private readonly settings = inject(SettingsService);
   private readonly highlighter = inject(TranscriptHighlighterService);
 
@@ -98,6 +97,34 @@ export class LiveComponent {
 
   readonly triggerStateLabel = computed(() => TRIGGER_STATE_LABEL[this.session.triggerState()]);
   readonly triggerStateIcon = computed(() => TRIGGER_STATE_ICON[this.session.triggerState()]);
+
+  diagnosticStageLabel(stage: string): string {
+    return (
+      {
+        'input-received': 'Input received',
+        'transcription-received': 'Voice received',
+        'keyword-matched': 'Keyword detected',
+        'decision-accepted': 'Cue accepted',
+        'decision-rejected': 'Cue skipped',
+        'decision-pending': 'Confirmation needed',
+        'playback-completed': 'Playback finished',
+      }[stage] ?? 'Recent activity'
+    );
+  }
+
+  diagnosticMessage(reason: string | undefined): string {
+    return (
+      {
+        'recognition-confidence-below-minimum': 'Not played: confidence too low',
+        'operator-confirmation-required': 'Waiting for your confirmation',
+        'automatic-cue-accepted': 'Cue accepted automatically',
+        'automatic-cue-accepted-on-interim': 'Cue accepted while listening',
+      }[reason ?? ''] ??
+      reason ??
+      'Trigger Engine status updated'
+    );
+  }
+
   /** Whether the state dot should pulse (engine actively working vs. holding steady). */
   readonly triggerStatePulsing = computed(() =>
     (
@@ -203,7 +230,7 @@ export class LiveComponent {
     const cue = this.session.enabledCues().find((item) => Boolean(item.audioFile));
     if (!cue || this.outputTestRunning()) return;
     this.outputTestRunning.set(true);
-    const playback = await this.player.play(cue);
+    const playback = await this.audioEngine.play(cue);
     this.outputTestRunning.set(false);
     const report = this.report();
     if (!report) return;
