@@ -39,14 +39,11 @@ export class SettingsService {
 
   constructor() {
     // Auto-save on changes
-    effect(
-      () => {
-        const config = this.settings();
-        this.saveToStorage(config);
-        this.storageSubject.next(config);
-      },
-      { allowSignalWrites: true },
-    );
+    effect(() => {
+      const config = this.settings();
+      this.saveToStorage(config);
+      this.storageSubject.next(config);
+    });
 
     // Update system status when settings change
     effect(() => {
