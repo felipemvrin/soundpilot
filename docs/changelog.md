@@ -2,6 +2,12 @@
 
 This file records meaningful changes merged through pull requests. Keep entries short and link them to the project status when a phase changes.
 
+## 2026-09-04
+
+- Resolved Angular signal deprecation debt in `SettingsService` by removing `{ allowSignalWrites: true }`, ensuring clean test runs without stderr warnings.
+- Added GitHub Actions workflow (`.github/workflows/auto-docs.yml`) for automated updates to `STATUS.md` on commits to `main`.
+- Updated canonical project status (`docs/project-status.md`) and verified test, lint, and build pass rates.
+
 ## 2026-08-25
 
 - Added compact architecture and browser/hardware validation guides to reduce repeated repository exploration.
