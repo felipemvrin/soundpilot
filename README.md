@@ -57,6 +57,35 @@ Open the URL printed by Angular, usually `http://localhost:4200`. Grant micropho
 
 On macOS, the npm scripts limit Angular builder workers to one to avoid the native esbuild concurrency issue observed on this project.
 
+## Cloudflare Pages
+
+The repository includes [wrangler.toml](wrangler.toml) with the production output directory for Cloudflare Pages: `dist/soundpilot/browser`.
+
+### GitHub deployment
+
+In Cloudflare, open **Workers & Pages → Create application → Pages → Connect to Git** and select this repository with:
+
+```text
+Framework preset: Angular
+Build command: npm run build
+Build output directory: dist/soundpilot/browser
+Root directory: /
+Node version: 20
+```
+
+Cloudflare Pages provides a free `*.pages.dev` hostname and HTTPS. A custom domain must be registered separately and then added under **Custom domains** in the Pages project. HTTPS is required for microphone access outside localhost.
+
+### CLI deployment
+
+After authenticating Wrangler with a Cloudflare API token or `wrangler login`, run:
+
+```sh
+npm run build
+npx wrangler pages deploy dist/soundpilot/browser --project-name soundpilot
+```
+
+Do not commit API tokens. Configure them as Cloudflare or CI secrets when deploying outside the local CLI.
+
 ## Development commands
 
 ```sh

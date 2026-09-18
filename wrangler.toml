@@ -1,0 +1,3 @@
+name = "soundpilot"
+pages_build_output_dir = "dist/soundpilot/browser"
+compatibility_date = "2026-09-18"
