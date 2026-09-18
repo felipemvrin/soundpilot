@@ -2,7 +2,7 @@
 
 SoundPilot is a browser-based real-time audio cue assistant for live podcasts, radio and TV production. It listens for configured words or phrases, evaluates the match, and plays the corresponding cue.
 
-**Current status:** stabilization and validation stage. The browser MVP and core P0 work are implemented, but the project is not production-ready for live radio until real browser and hardware validation is documented.
+**Current status:** stabilization and validation stage. The browser MVP and core P0 work are implemented, but the project is not production-ready for live radio until failure and recovery scenarios are documented in the browser and hardware validation matrix.
 
 The canonical status is maintained in [docs/project-status.md](docs/project-status.md). The original execution objectives remain in [docs/p0-execution-plan.md](docs/p0-execution-plan.md).
 

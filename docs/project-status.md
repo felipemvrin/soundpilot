@@ -2,11 +2,11 @@
 
 Last reviewed: 2026-09-17
 Reviewed branch: `main`  
-Reviewed commit: `f62651d` (`docs: actualizar STATUS.md automáticamente`)
+Reviewed commit: `b8d8ab1` (`docs: registrar validacion de navegador y hardware`)
 
 ## Current Position
 
-SoundPilot is in the stabilization and validation stage after the main P0 work. The core browser MVP is functional and the recent work has added operator diagnostics and the `AudioEnginePort` abstraction. The project is **not production-ready for live radio** until real browser and hardware validation is documented.
+SoundPilot is in the stabilization and validation stage after the main P0 work. The core browser MVP is functional and the recent work has added operator diagnostics and the `AudioEnginePort` abstraction. The project is **not production-ready for live radio** until failure and recovery scenarios are documented for the supported browser/device matrix.
 
 The UI redesign is a separate workstream. It must not be treated as completed based on this branch unless its pull request is merged here and its visual QA evidence is recorded.
 

@@ -2,15 +2,15 @@
 
 This file records meaningful changes merged through pull requests. Keep entries short and link them to the project status when a phase changes.
 
+## 2026-09-17
+
+- Recorded the first real browser and hardware validation run: Chrome 150.0.7871.125 on macOS 12.7.6 with the Mac built-in microphone and output. The main listening, recognition, playback, Air Mode and keyboard flows passed; failure and recovery scenarios remain for release readiness.
+
 ## 2026-09-04
 
 - Resolved Angular signal deprecation debt in `SettingsService` by removing `{ allowSignalWrites: true }`, ensuring clean test runs without stderr warnings.
 - Added GitHub Actions workflow (`.github/workflows/auto-docs.yml`) for automated updates to `STATUS.md` on commits to `main`.
 - Updated canonical project status (`docs/project-status.md`) and verified test, lint, and build pass rates.
-
-## 2026-09-17
-
-- Recorded the first real browser and hardware validation run: Chrome 150.0.7871.125 on macOS 12.7.6 with the Mac built-in microphone and output. The main listening, recognition, playback, Air Mode and keyboard flows passed; failure and recovery scenarios remain for release readiness.
 
 ## 2026-08-25
 
