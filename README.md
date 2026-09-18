@@ -2,7 +2,7 @@
 
 SoundPilot is a browser-based real-time audio cue assistant for live podcasts, radio and TV production. It listens for configured words or phrases, evaluates the match, and plays the corresponding cue.
 
-**Current status:** stabilization and validation stage. The browser MVP and core P0 work are implemented, but the project is not production-ready for live radio until real browser and hardware validation is documented.
+**Current status:** stabilization and validation stage. The browser MVP and core P0 work are implemented, but the project is not production-ready for live radio until failure and recovery scenarios are documented in the browser and hardware validation matrix.
 
 The canonical status is maintained in [docs/project-status.md](docs/project-status.md). The original execution objectives remain in [docs/p0-execution-plan.md](docs/p0-execution-plan.md).
 
@@ -31,7 +31,7 @@ SoundPilot is not a DAW, mixer, chatbot or generative AI system. Recognition is 
 
 ## Current limitations
 
-- Real browser and hardware validation is still pending.
+- Main browser and hardware flow validated on macOS 12.7.6 with Chrome 150.0.7871.125 and the Mac built-in microphone/output. Failure and recovery scenarios remain pending.
 - Preflight severity policy for blocking Air Mode is not yet configurable.
 - `sensitivity` does not yet have finalized product semantics.
 - Matching is deterministic exact matching; fuzzy, semantic and LLM matching are intentionally out of scope for the current stabilization stage.
@@ -104,7 +104,7 @@ idle -> initializing -> listening -> detecting -> matched -> triggering -> coold
 1. MVP cue engine: complete.
 2. P0 observability and trigger decisions: complete.
 3. P0 AudioEnginePort boundary: complete.
-4. Browser and real hardware validation: pending.
+4. Browser and real hardware validation: main flow validated; failure and recovery scenarios pending.
 5. Configurable readiness and severity policy: pending.
 6. Real Audio Engine definition and integration: pending.
 7. UI redesign visual QA and completion: needs review.
