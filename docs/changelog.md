@@ -8,6 +8,10 @@ This file records meaningful changes merged through pull requests. Keep entries 
 - Added GitHub Actions workflow (`.github/workflows/auto-docs.yml`) for automated updates to `STATUS.md` on commits to `main`.
 - Updated canonical project status (`docs/project-status.md`) and verified test, lint, and build pass rates.
 
+## 2026-09-17
+
+- Recorded the first real browser and hardware validation run: Chrome 150.0.7871.125 on macOS 12.7.6 with the Mac built-in microphone and output. The main listening, recognition, playback, Air Mode and keyboard flows passed; failure and recovery scenarios remain for release readiness.
+
 ## 2026-08-25
 
 - Added compact architecture and browser/hardware validation guides to reduce repeated repository exploration.

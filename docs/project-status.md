@@ -1,8 +1,8 @@
 # SoundPilot Project Status
 
-Last reviewed: 2026-09-04  
+Last reviewed: 2026-09-17
 Reviewed branch: `main`  
-Reviewed commit: `a2f46f2` (`docs: actualizar STATUS.md automáticamente`)
+Reviewed commit: `f62651d` (`docs: actualizar STATUS.md automáticamente`)
 
 ## Current Position
 
@@ -14,18 +14,18 @@ For fast codebase orientation, see [architecture.md](architecture.md). Real brow
 
 ## Phase Matrix
 
-| Phase               | Scope                                                        | Status       | Evidence or next step                                                      |
-| ------------------- | ------------------------------------------------------------ | ------------ | -------------------------------------------------------------------------- |
-| MVP cue engine      | Cue persistence, exact matching, cooldown and playback       | DONE         | Current services and unit tests                                            |
-| P0 Sprint 1         | Diagnostics, decisions and trigger traceability              | DONE         | `TriggerDiagnosticEvent`, LIVE diagnostics and current tests               |
-| P0 Sprint 2         | `AudioEnginePort` boundary and browser adapter compatibility | DONE         | `src/app/core/audio/audio-engine.port.ts` and PR #12                       |
-| P0 Sprint 3         | Browser and real hardware validation                         | PENDING      | Record scenarios in `docs/browser-validation.md`                           |
-| P0 Sprint 4         | Configurable severity and readiness policy                   | PENDING      | Define when warnings block Air Mode                                        |
-| P1 sensitivity      | Product definition and implementation of `sensitivity`       | PENDING      | Decide semantics before changing matching                                  |
-| P1 match confidence | Independent confidence calculation                           | PENDING      | Current matching is deterministic exact matching                           |
-| P1 observability    | Structured technical logging and latency review              | IN PROGRESS  | Diagnostic events exist; review production logging policy                  |
-| Fase 6 Audio Engine | Replace or extend the browser adapter with the real engine   | PENDING      | Define the target runtime and adapter contract                             |
-| UI redesign         | Premium broadcast control-surface visual treatment           | NEEDS REVIEW | Review the dedicated branch/PR with desktop, tablet and mobile screenshots |
+| Phase               | Scope                                                        | Status       | Evidence or next step                                                                                 |
+| ------------------- | ------------------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
+| MVP cue engine      | Cue persistence, exact matching, cooldown and playback       | DONE         | Current services and unit tests                                                                       |
+| P0 Sprint 1         | Diagnostics, decisions and trigger traceability              | DONE         | `TriggerDiagnosticEvent`, LIVE diagnostics and current tests                                          |
+| P0 Sprint 2         | `AudioEnginePort` boundary and browser adapter compatibility | DONE         | `src/app/core/audio/audio-engine.port.ts` and PR #12                                                  |
+| P0 Sprint 3         | Browser and real hardware validation                         | NEEDS REVIEW | Main flow validated on macOS 12.7.6 with Chrome 150.0.7871.125; record failure and recovery scenarios |
+| P0 Sprint 4         | Configurable severity and readiness policy                   | PENDING      | Define when warnings block Air Mode                                                                   |
+| P1 sensitivity      | Product definition and implementation of `sensitivity`       | PENDING      | Decide semantics before changing matching                                                             |
+| P1 match confidence | Independent confidence calculation                           | PENDING      | Current matching is deterministic exact matching                                                      |
+| P1 observability    | Structured technical logging and latency review              | IN PROGRESS  | Diagnostic events exist; review production logging policy                                             |
+| Fase 6 Audio Engine | Replace or extend the browser adapter with the real engine   | PENDING      | Define the target runtime and adapter contract                                                        |
+| UI redesign         | Premium broadcast control-surface visual treatment           | NEEDS REVIEW | Review the dedicated branch/PR with desktop, tablet and mobile screenshots                            |
 
 ## Implemented Behavior
 
@@ -44,8 +44,8 @@ For fast codebase orientation, see [architecture.md](architecture.md). Real brow
 
 ## Remaining Work
 
-1. Validate microphone, speech recognition, output routing, permissions and Air Mode in real browsers and hardware.
-2. Record supported browser and device combinations, including failure and recovery scenarios.
+1. Record failure and recovery scenarios for permissions, device changes, recognition restarts and playback errors.
+2. Add another supported browser/device combination before release readiness.
 3. Define configurable warning versus blocking severity for Preflight and Air Mode.
 4. Decide whether `sensitivity` is meaningful; remove it or implement it with tests.
 5. Define independent match-confidence semantics before adding fuzzy or semantic matching.
@@ -61,6 +61,7 @@ Do not declare production readiness until all of the following are documented:
 - `npm run lint` passes.
 - `npm run build` passes.
 - Browser permission, microphone, speech, output and playback scenarios pass on supported hardware.
+- Failure and recovery behavior is recorded for the supported browser/device matrix.
 - Air Mode behavior is defined for warnings and failures.
 - Trigger decisions include an inspectable reason and latency evidence.
 - The README and this status file match the current implementation.
