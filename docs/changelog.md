@@ -8,7 +8,7 @@ This file records meaningful changes merged through pull requests. Keep entries 
 
 ## 2026-09-18
 
-- Added Cloudflare Pages deployment configuration with the Angular production output path and documented GitHub integration and Wrangler deployment steps.
+- Added Cloudflare Pages deployment configuration with the Angular production output path, an SPA `_redirects` fallback for Angular routes, and documented GitHub integration and Wrangler deployment steps.
 
 ## 2026-09-04
 

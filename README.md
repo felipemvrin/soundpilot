@@ -73,6 +73,10 @@ Root directory: /
 Node version: 20
 ```
 
+Set `main` as the **Production branch** under **Settings → Builds & deployments**. Keep feature branches such as `infra/cloudflare-pages` as preview deployments for pull requests.
+
+Cloudflare Pages must serve the Angular app with an SPA fallback so direct requests and browser refreshes on `/live`, `/cues` and `/settings` resolve to `index.html`. The repository ships this as `public/_redirects`, which is copied into the production build automatically.
+
 Cloudflare Pages provides a free `*.pages.dev` hostname and HTTPS. A custom domain must be registered separately and then added under **Custom domains** in the Pages project. HTTPS is required for microphone access outside localhost.
 
 ### CLI deployment
