@@ -1,18 +1,19 @@
 # Estado del proyecto
 
-_Generado automáticamente el 2026-09-04T17:39:21.592Z_
+_Generado automáticamente el 2026-09-18T14:02:35.805Z_
 
 ## Últimos cambios
 
-- c050ab1 Merge pull request #14 from felipemvrin/fix/signal-deprecation-docs (Felipe Marín Valdivia, 9 seconds ago)
-- 1975f98 fix(settings): eliminar allowSignalWrites en SettingsService y actualizar docs (Felipe Marin, 10 minutes ago)
-- a2f46f2 docs: actualizar STATUS.md automáticamente (github-actions[bot], 49 minutes ago)
+- c3904e2 Merge pull request #15 from felipemvrin/docs/browser-hardware-validation (Felipe Marín Valdivia, 8 seconds ago)
+- 7efc065 docs: tighten validation readiness wording and status metadata (copilot-swe-agent[bot], 23 seconds ago)
+- f62651d docs: actualizar STATUS.md automáticamente (github-actions[bot], 2 weeks ago)
 
 ## Archivos modificados recientemente
 
+- README.md
+- docs/browser-validation.md
 - docs/changelog.md
 - docs/project-status.md
-- src/app/core/services/settings.service.ts
 
 ## Pendientes detectados (TODO/FIXME)
 
