@@ -1,19 +1,20 @@
 # Estado del proyecto
 
-_Generado automáticamente el 2026-09-18T14:02:35.805Z_
+_Generado automáticamente el 2026-09-18T15:04:19.733Z_
 
 ## Últimos cambios
 
-- c3904e2 Merge pull request #15 from felipemvrin/docs/browser-hardware-validation (Felipe Marín Valdivia, 8 seconds ago)
-- 7efc065 docs: tighten validation readiness wording and status metadata (copilot-swe-agent[bot], 23 seconds ago)
-- f62651d docs: actualizar STATUS.md automáticamente (github-actions[bot], 2 weeks ago)
+- 8b6c01d Merge pull request #16 from felipemvrin/infra/cloudflare-pages (Felipe Marín Valdivia, 7 seconds ago)
+- aeae1ee chore: clarify public asset output root (copilot-swe-agent[bot], 4 minutes ago)
+- 2786a8e docs: actualizar STATUS.md automáticamente (github-actions[bot], 62 minutes ago)
 
 ## Archivos modificados recientemente
 
 - README.md
-- docs/browser-validation.md
+- angular.json
 - docs/changelog.md
-- docs/project-status.md
+- public/_redirects
+- wrangler.toml
 
 ## Pendientes detectados (TODO/FIXME)
 
