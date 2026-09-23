@@ -1,16 +1,15 @@
 # Estado del proyecto
 
-_Generado automáticamente el 2026-09-23T19:50:34.938Z_
+_Generado automáticamente el 2026-09-23T19:57:10.347Z_
 
 ## Últimos cambios
 
-- a7defa5 chore: actualizar favicon de SoundPilot (Felipe Marín Valdivia, 15 seconds ago)
-- be09fb6 docs: actualizar STATUS.md automáticamente (github-actions[bot], 5 days ago)
+- b52c642 chore: añadir imagen del favicon (Felipe Marín Valdivia, 5 minutes ago)
+- c1b083c docs: actualizar STATUS.md automáticamente (github-actions[bot], 7 minutes ago)
 
 ## Archivos modificados recientemente
 
-- angular.json
-- src/index.html
+- favicon-soundpilot.png
 
 ## Pendientes detectados (TODO/FIXME)
 
