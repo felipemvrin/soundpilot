@@ -51,6 +51,11 @@
                 "glob": "**/*",
                 "input": "public",
                 "output": "/"
+              },
+              {
+                "glob": "favicon-soundpilot.png",
+                "input": ".",
+                "output": "/"
               }
             ],
             "styles": ["src/styles.scss"]
